@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /member
+Disallow: /gallery
+
+Sitemap: https://www.gime160.com/sitemap.xml

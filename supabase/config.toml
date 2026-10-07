@@ -1,0 +1,8 @@
+# 使用 Supabase CLI 部署時會讀取此設定（使用後台網頁編輯器部署則請手動關閉 Verify JWT）
+project_id = "ysfutoqeuicjbjxvksso"
+
+[functions.send-notifications]
+verify_jwt = false
+
+[functions.line-webhook]
+verify_jwt = false

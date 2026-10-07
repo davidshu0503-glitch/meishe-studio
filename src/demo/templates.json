@@ -1,0 +1,46 @@
+{
+"booking_created": {
+"subject": "【即美創畫攝影】預約成功 {{booking_id}}",
+"body": "{{name}} 您好，\n\n感謝您預約即美創畫攝影！\n\n預約編號：{{booking_id}}\n訂單編號：{{order_id}}\n服務項目：{{service}}\n拍攝時間：{{date}} {{time}}\n費用：NT$ {{amount}}\n\n工作室將盡快與您確認細節。如需改期或取消，請來電 {{studio_phone}}。\n\n{{studio_name}}\n{{site_url}}"
+},
+"booking_cancelled": {
+"subject": "【即美創畫攝影】預約已取消 {{booking_id}}",
+"body": "{{name}} 您好，\n\n您於 {{date}} {{time}} 的「{{service}}」預約（編號 {{booking_id}}）已取消。\n如有任何問題，歡迎來電 {{studio_phone}}，期待下次為您服務。\n\n{{studio_name}}"
+},
+"payment_received": {
+"subject": "【即美創畫攝影】已收到您的款項 {{order_id}}",
+"body": "{{name}} 您好，\n\n我們已收到訂單 {{order_id}} 的款項，謝謝您！\n拍攝時間：{{date}} {{time}}（{{service}}）\n\n{{studio_name}}"
+},
+"album_ready": {
+"subject": "【即美創畫攝影】您的照片可以選片了！",
+"body": "{{name}} 您好，\n\n您的「{{service}}」照片已上傳完成，歡迎線上選片：\n{{site_url}}/gallery?order={{order_id}}\n\n請以訂單編號 {{order_id}} 與預約電話登入。\n\n{{studio_name}}"
+},
+"selection_done": {
+"subject": "【即美創畫攝影】已收到您的選片 {{order_id}}",
+"body": "{{name}} 您好，\n\n我們已收到您選擇的 {{selected_count}} 張照片，接下來將進入修圖流程，完成後會再通知您。\n\n{{studio_name}}"
+},
+"retouch_started": {
+"subject": "【即美創畫攝影】照片修圖中",
+"body": "{{name}} 您好，\n\n您訂單 {{order_id}} 的照片已開始精修，完成後會立即通知您下載。\n\n{{studio_name}}"
+},
+"delivered": {
+"subject": "【即美創畫攝影】精修照片已完成，可以下載了！",
+"body": "{{name}} 您好，\n\n您的精修照片已完成交件，請至以下網址下載：\n{{site_url}}/gallery?order={{order_id}}\n\n感謝您選擇即美創畫攝影，期待再次相見！\n\n{{studio_name}}"
+},
+"shoot_reminder": {
+"subject": "【即美創畫攝影】明天拍攝提醒",
+"body": "{{name}} 您好，\n\n提醒您明天 {{date}} {{time}} 有「{{service}}」拍攝預約（編號 {{booking_id}}）。\n如需調整請來電 {{studio_phone}}，明天見！\n\n{{studio_name}}"
+},
+"studio_booking_created": {
+"subject": "🔔 新預約｜{{date}} {{time}} {{service}}",
+"body": "新預約進來了！\n\n客戶：{{name}}（{{phone}}）\n服務：{{service}}\n時間：{{date}} {{time}}\n預約編號：{{booking_id}}\n訂單編號：{{order_id}}\n金額：NT$ {{amount}}\n備註：{{note}}\n\n後台：{{site_url}}/admin"
+},
+"studio_booking_cancelled": {
+"subject": "❌ 預約取消｜{{date}} {{time}} {{name}}",
+"body": "預約已取消，時段已自動釋放。\n\n客戶：{{name}}（{{phone}}）\n服務：{{service}}\n時間：{{date}} {{time}}\n預約編號：{{booking_id}}"
+},
+"studio_selection_done": {
+"subject": "✅ 客戶完成選片｜{{name}} {{order_id}}",
+"body": "客戶 {{name}} 已完成選片，共 {{selected_count}} 張，可以開始修圖了。\n\n訂單：{{order_id}}（{{service}}）\n後台：{{site_url}}/admin/orders/{{order_id}}"
+}
+}
