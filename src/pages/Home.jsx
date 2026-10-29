@@ -7,6 +7,7 @@ import { Reveal, useTitle } from "../components/ui";
 import Protect, { Watermark } from "../components/Protect";
 import StyleShowcase from "../components/StyleShowcase";
 import { OfferCard, PromoLink } from "../components/Promo";
+import { discountLabel } from "../lib/promos";
 
 const HERO_MS = 6000;
 
@@ -42,6 +43,7 @@ function Hero() {
           {promo.subtitle && <p className="hero-anim" style={{ animationDelay: ".2s" }}>{promo.subtitle}</p>}
           <div className="hero-cta hero-anim" style={{ animationDelay: ".3s", justifyContent: "flex-start", marginTop: 6 }}>
             <PromoLink promo={promo} className="btn btn-accent">{promo.cta_label || "立即預約"}</PromoLink>
+            {discountLabel(promo) && <span className="offer-discount on-dark">{discountLabel(promo)}</span>}
             {promo.code && <span className="promo-code" style={{ background: "rgba(255,255,255,.9)" }}>代碼 <b>{promo.code}</b></span>}
           </div>
         </div>

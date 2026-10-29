@@ -715,3 +715,6 @@ html.has-promo-bar body { padding-top: var(--bar-h); }
 .promo-preview { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--paper-2); padding: 12px; }
 @media (max-width: 760px) { .promo-row { grid-template-columns: 28px 64px minmax(0, 1fr); } .promo-row img, .promo-row .ph { width: 64px; height: 48px; } .promo-row .acts { grid-column: 1 / -1; justify-content: flex-start; } }
 .admin-side .count.live { background: var(--ok); }
+.offer-discount { display: inline-block; font-family: var(--display); font-size: 22px; line-height: 1.1; color: var(--accent); font-weight: 500; letter-spacing: .04em; }
+.offer-discount.on-dark { color: #fff; background: var(--accent); font-family: var(--sans); font-size: 15px; padding: 6px 12px; border-radius: 4px; }
+.promo-bar-off { background: #fff; color: var(--accent); font-weight: 700; padding: 1px 8px; border-radius: 4px; flex: none; }

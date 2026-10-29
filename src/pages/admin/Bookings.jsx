@@ -9,7 +9,7 @@ import { deleteBookings } from "../../lib/records";
 export function NewBookingModal({ onClose, onDone }) {
   const { services, booking: cfg } = useSite();
   const toast = useToast();
-  const [f, setF] = useState({ service: services[0]?.id || "", date: twDate(1), time: cfg.slots?.[0] || "10:00", name: "", phone: "", method: "email", email: "", line: "", note: "" });
+  const [f, setF] = useState({ service: services[0]?.id || "", date: twDate(1), time: cfg.slots?.[0] || "10:00", name: "", phone: "", method: "email", email: "", line: "", note: "", promo: "" });
   const [busy, setBusy] = useState(false);
   const set = (k, v) => setF((x) => ({ ...x, [k]: v }));
   const save = async () => {
@@ -17,6 +17,7 @@ export function NewBookingModal({ onClose, onDone }) {
     const { data, error } = await supabase.rpc("create_booking", {
       p_service_id: f.service, p_date: f.date, p_time: f.time, p_name: f.name, p_phone: f.phone,
       p_contact_method: f.method, p_email: f.email || null, p_line_id: f.line || null, p_note: f.note,
+      ...(f.promo.trim() ? { p_promo_code: f.promo.trim().toUpperCase() } : {}),
     });
     setBusy(false);
     if (error) return toast(errMsg(error), "err");
@@ -39,6 +40,7 @@ export function NewBookingModal({ onClose, onDone }) {
         {f.method === "email"
           ? <Field label="Email"><input className="input" value={f.email} onChange={(e) => set("email", e.target.value)} /></Field>
           : <Field label="LINE ID"><input className="input" value={f.line} onChange={(e) => set("line", e.target.value)} /></Field>}
+        <Field label="優惠代碼（選填，會自動計算折扣）"><input className="input" value={f.promo} maxLength={20} onChange={(e) => set("promo", e.target.value.toUpperCase())} /></Field>
         <Field label="備註" full><textarea className="textarea" value={f.note} onChange={(e) => set("note", e.target.value)} /></Field>
       </div>
     </Modal>

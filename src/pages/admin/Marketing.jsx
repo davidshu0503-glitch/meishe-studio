@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { errMsg, imgUrl, supabase } from "../../lib/supabase";
 import { useSite } from "../../lib/site";
 import { fmtDateTime } from "../../lib/utils";
-import { endsText, PROMO_KINDS, promoStatus, STATUS_LABEL, STATUS_TONE } from "../../lib/promos";
+import { calcAmount, discountLabel, DISCOUNT_TYPES, endsText, PROMO_KINDS, promoStatus, STATUS_LABEL, STATUS_TONE } from "../../lib/promos";
+import { money } from "../../lib/utils";
 import { BulkBar, Confirm, Field, Modal, Spinner, useSelection, useToast } from "../../components/ui";
 import { ImagePicker } from "./Content";
 
-const BLANK = { kind: "offer", title: "", subtitle: "", body: "", image: "", badge: "", code: "", cta_label: "", cta_link: "", service_ids: [], start_at: null, end_at: null, published: false, sort: 0 };
+const BLANK = { kind: "offer", title: "", subtitle: "", body: "", image: "", badge: "", code: "", cta_label: "", cta_link: "", service_ids: [], start_at: null, end_at: null, published: false, sort: 0, discount_type: "none", discount_value: 0, max_uses: 0 };
 
 // 常用的檔期範本（只是預填文字，日期與內容請自行調整）
 const TEMPLATES = [
@@ -63,6 +64,7 @@ function Preview({ p }) {
         {p.badge && <span className="promo-badge">{p.badge}</span>}
         <h3 style={{ fontSize: 18 }}>{p.title || "活動標題"}</h3>
         {p.subtitle && <p className="small">{p.subtitle}</p>}
+        {discountLabel(p) && <div className="offer-discount">{discountLabel(p)}</div>}
         {p.code && <div className="promo-code">代碼 <b>{p.code}</b></div>}
         <span className="btn btn-sm btn-accent">{p.cta_label || "立即預約"}</span>
       </div>
@@ -81,11 +83,17 @@ function Editor({ value, services, onClose, onSaved }) {
     if (p.start_at && p.end_at && new Date(p.end_at) <= new Date(p.start_at)) return toast("結束時間要晚於開始時間", "err");
     const code = (p.code || "").trim().toUpperCase();
     if (code && !/^[A-Z0-9_-]{3,20}$/.test(code)) return toast("優惠代碼請用 3–20 個英文字母或數字", "err");
+    const dt = p.discount_type || "none", dv = Math.round(Number(p.discount_value) || 0);
+    if (dt !== "none" && !code) return toast("設定折扣需要填寫優惠代碼（客人用代碼才會折扣）", "err");
+    if (dt === "percent" && (dv < 1 || dv > 99)) return toast("打折請填 1–99，例如 85＝85 折、9 折請填 90", "err");
+    if (dt === "amount" && dv < 1) return toast("請填寫要折抵的金額", "err");
     const row = {
       kind: p.kind, title: p.title.trim(), subtitle: p.subtitle || "", body: p.body || "", image: p.image || "", badge: p.badge || "", code,
       cta_label: p.cta_label || "", cta_link: (p.cta_link || "").trim(), service_ids: p.service_ids || [], start_at: p.start_at, end_at: p.end_at,
       published: !!p.published, sort: Number(p.sort) || 0,
     };
+    // 折扣欄位（資料庫執行過 05-discount.sql 才有）
+    if (dt !== "none" || (value.id && "discount_type" in value)) Object.assign(row, { discount_type: dt, discount_value: dt === "none" ? 0 : dv, max_uses: Math.max(0, Math.round(Number(p.max_uses) || 0)) });
     setBusy(true);
     const { error } = p.id ? await supabase.from("promotions").update(row).eq("id", p.id) : await supabase.from("promotions").insert(row);
     setBusy(false);
@@ -115,14 +123,20 @@ function Editor({ value, services, onClose, onSaved }) {
           <Field label="標題" full><input className="input" value={p.title} maxLength={60} onChange={(e) => set("title", e.target.value)} /></Field>
           <Field label="副標（選填）" full><input className="input" value={p.subtitle} maxLength={100} onChange={(e) => set("subtitle", e.target.value)} /></Field>
           <Field label="角標（選填）" hint="例如：限時、檔期限定"><input className="input" value={p.badge} maxLength={12} onChange={(e) => set("badge", e.target.value)} /></Field>
-          <Field label="優惠代碼（選填）" hint="客人預約時會自動帶入備註">
+          <Field label="優惠代碼（選填）" hint="客人從活動進入預約頁會自動帶入">
             <div className="flex"><input className="input" value={p.code} maxLength={20} placeholder="例如 XMAS26" onChange={(e) => set("code", e.target.value.toUpperCase())} /><button type="button" className="btn btn-ghost btn-sm" onClick={() => set("code", genCode())}>產生</button></div>
           </Field>
+          <Field label="折扣方式" full hint={p.discount_type === "none" ? "代碼只用來標記，金額由你在訂單裡調整" : "客人用代碼預約時，訂單會直接是折扣後的金額"}>
+            <div className="seg" style={{ flexWrap: "wrap" }}>{Object.entries(DISCOUNT_TYPES).map(([k, l]) => <button key={k} type="button" className={(p.discount_type || "none") === k ? "on" : ""} onClick={() => set("discount_type", k)}>{l}</button>)}</div>
+          </Field>
+          {p.discount_type === "percent" && <Field label="打幾折" hint="85＝85 折（付 85%）；9 折請填 90"><input className="input" type="number" min="1" max="99" value={p.discount_value || ""} onChange={(e) => set("discount_value", e.target.value)} /></Field>}
+          {p.discount_type === "amount" && <Field label="折抵金額（元）" hint="例如 500＝每筆訂單折 NT$500"><input className="input" type="number" min="1" value={p.discount_value || ""} onChange={(e) => set("discount_value", e.target.value)} /></Field>}
+          {p.discount_type && p.discount_type !== "none" && <Field label="名額上限" hint="0＝不限；已取消的訂單不算"><input className="input" type="number" min="0" value={p.max_uses || 0} onChange={(e) => set("max_uses", e.target.value)} /></Field>}
           {p.kind !== "bar" && <ImagePicker value={p.image} onChange={(v) => set("image", v)} label={p.kind === "hero" ? "橫幅大圖（必填，建議橫式 1800px 以上）" : "圖片（選填）"} />}
           {p.kind === "offer" && <Field label="活動詳情（優惠活動頁顯示）" full><textarea className="textarea" value={p.body} maxLength={1000} onChange={(e) => set("body", e.target.value)} /></Field>}
           <Field label="按鈕文字"><input className="input" value={p.cta_label} maxLength={16} placeholder="立即預約" onChange={(e) => set("cta_label", e.target.value)} /></Field>
           <Field label="按鈕連到">
-            <select className="select" value={LINK_PRESETS.some(([v]) => v === p.cta_link) ? p.cta_link : "__custom"} onChange={(e) => set("cta_link", e.target.value === "__custom" ? "/booking?service=" : e.target.value)}>
+            <select className="select" value={LINK_PRESETS.some(([v]) => v === p.cta_link) || services.some((s) => s.bookable && `/booking?service=${s.id}` === p.cta_link) ? p.cta_link : "__custom"} onChange={(e) => set("cta_link", e.target.value === "__custom" ? "/booking?service=" : e.target.value)}>
               {LINK_PRESETS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               {services.filter((s) => s.bookable).map((s) => <option key={s.id} value={`/booking?service=${s.id}`}>預約：{s.name}</option>)}
               <option value="__custom">自訂網址…</option>
@@ -133,10 +147,10 @@ function Editor({ value, services, onClose, onSaved }) {
           )}
           <Field label="開始時間" hint="空白＝上架後立即開始"><input className="input" type="datetime-local" value={toLocal(p.start_at)} onChange={(e) => set("start_at", fromLocal(e.target.value))} /></Field>
           <Field label="結束時間" hint="時間到自動下架；空白＝不會自動結束"><input className="input" type="datetime-local" value={toLocal(p.end_at)} onChange={(e) => set("end_at", fromLocal(e.target.value))} /></Field>
-          {p.kind === "offer" && (
-            <Field label="適用服務（服務頁會標示「優惠中」）" full>
+          {(p.kind === "offer" || (p.discount_type && p.discount_type !== "none")) && (
+            <Field label="適用服務（沒勾選＝全部服務都可用；服務頁會標示「優惠中」）" full>
               <div className="flex flex-wrap small">{services.filter((s) => s.tier !== "hidden").map((s) => (
-                <label key={s.id} className="flex"><input type="checkbox" checked={(p.service_ids || []).includes(s.id)} onChange={(e) => set("service_ids", e.target.checked ? [...(p.service_ids || []), s.id] : p.service_ids.filter((x) => x !== s.id))} />{s.name}</label>
+                <label key={s.id} className="flex"><input type="checkbox" checked={(p.service_ids || []).includes(s.id)} onChange={(e) => set("service_ids", e.target.checked ? [...(p.service_ids || []), s.id] : p.service_ids.filter((x) => x !== s.id))} />{s.name}{discountLabel(p) && s.price > 0 && <span className="muted">（{money(s.price)}→{money(calcAmount(p, s.price))}）</span>}</label>
               ))}</div>
             </Field>
           )}
@@ -166,10 +180,13 @@ export default function Marketing() {
   const load = async () => {
     const { data, error } = await supabase.from("promotions").select("*").order("sort").order("created_at", { ascending: false });
     setMissing(!!error); setRows(data || []);
-    // 統計每個優惠代碼被用在幾筆預約（從預約備註的【優惠 代碼｜…】辨識）
-    const { data: bk } = await supabase.from("bookings").select("note,status").ilike("note", "%【優惠 %").limit(5000);
+    // 統計每個優惠代碼用了幾筆、折了多少（訂單的 promo_code；舊資料從預約備註的【優惠 代碼｜…】辨識）
     const m = {};
-    (bk || []).forEach((b) => { const c = /【優惠 ([A-Z0-9_-]+)/.exec(b.note || "")?.[1]; if (c && b.status !== "已取消") m[c] = (m[c] || 0) + 1; });
+    const add = (c, disc) => { if (!c) return; c = c.toUpperCase(); m[c] ||= { n: 0, off: 0 }; m[c].n++; m[c].off += disc || 0; };
+    const { data: od, error: oe } = await supabase.from("orders").select("promo_code,discount,status").neq("promo_code", "").neq("status", "已取消").limit(10000);
+    if (!oe) (od || []).forEach((o) => add(o.promo_code, o.discount));
+    const { data: bk } = await supabase.from("bookings").select("note,status,promo_code").ilike("note", "%【優惠 %").limit(5000);
+    (bk || []).forEach((b) => { if (b.promo_code || b.status === "已取消") return; add(/【優惠 ([A-Z0-9_-]+)/.exec(b.note || "")?.[1], 0); });
     setUsage(m);
   };
   useEffect(() => { load(); }, []);
@@ -200,7 +217,7 @@ export default function Marketing() {
     if (error) return toast(errMsg(error), "err");
     toast(`已刪除 ${del.length} 個活動`); after();
   };
-  const duplicate = (p) => setEdit({ ...p, id: undefined, title: `${p.title}（複製）`, code: "", published: false, clicks: 0 });
+  const duplicate = (p) => setEdit({ ...p, id: undefined, title: `${p.title}（複製）`, code: p.discount_type && p.discount_type !== "none" ? genCode() : "", published: false, clicks: 0 });
 
   if (missing) return (
     <>
@@ -249,7 +266,7 @@ export default function Marketing() {
                   </div>
                   <div className="meta">
                     <span>{period(p)}{st === "live" && endsText(p) ? `（${endsText(p)}）` : ""}</span>
-                    {p.code && <span>代碼 <b style={{ color: "var(--accent)" }}>{p.code}</b>｜預約 {usage[p.code] || 0} 筆</span>}
+                    {p.code && <span>代碼 <b style={{ color: "var(--accent)" }}>{p.code}</b>{discountLabel(p) && `（${discountLabel(p)}）`}｜使用 {usage[p.code]?.n || 0}{p.max_uses > 0 ? ` / ${p.max_uses}` : ""} 筆{usage[p.code]?.off ? `｜共折抵 ${money(usage[p.code].off)}` : ""}</span>}
                     <span>點擊 {p.clicks || 0}</span>
                   </div>
                 </div>
@@ -266,8 +283,9 @@ export default function Marketing() {
       )}
       <div className="alert alert-info small mt-3" style={{ lineHeight: 1.9 }}>
         ・<b>上架開關</b>打開後，活動會在「開始時間」自動出現、「結束時間」自動消失；關掉就是草稿。<br />
-        ・客人點活動按鈕會記錄<b>點擊數</b>；用優惠代碼預約時，預約備註會出現「【優惠 代碼｜活動名稱】」，這裡會統計<b>預約筆數</b>（不含已取消）。<br />
-        ・優惠代碼只是標記，<b>不會自動改價</b>。請在訂單頁依活動內容調整金額。
+        ・客人點活動按鈕會記錄<b>點擊數</b>；用優惠代碼成立的訂單會統計在<b>使用筆數</b>與<b>折抵總額</b>（不含已取消）。<br />
+        ・設定了<b>折扣方式</b>的活動，客人用代碼預約時，訂單金額會<b>自動算好</b>（原價、折扣都會記在訂單裡）；名額滿了系統會自動擋下。<br />
+        ・折扣方式選「只標記」的活動不會改價，請在訂單頁自行調整金額。
       </div>
       {edit && <Editor key={edit.id || "new"} value={edit} services={services} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); after(); }} />}
       {del && <Confirm title={del.length > 1 ? `刪除 ${del.length} 個活動？` : `刪除「${del[0].title}」？`} danger confirmText="確定刪除"

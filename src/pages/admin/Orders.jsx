@@ -39,7 +39,7 @@ export default function Orders() {
     <>
       <div className="admin-head">
         <div><div className="kicker">Orders</div><h1>訂單／選片交件</h1></div>
-        <button className="btn btn-ghost btn-sm" onClick={() => csvDownload(`orders_${twDate()}.csv`, [["訂單編號", "預約編號", "客戶", "電話", "服務", "拍攝日", "時間", "金額", "已收", "付款方式", "狀態", "建立時間"], ...list.map((o) => [o.id, o.booking_id, o.customer_name, o.phone, o.service_name, o.date, o.time, o.amount, o.paid_amount, o.payment_method, o.status, fmtDateTime(o.created_at)])])}>匯出 CSV</button>
+        <button className="btn btn-ghost btn-sm" onClick={() => csvDownload(`orders_${twDate()}.csv`, [["訂單編號", "預約編號", "客戶", "電話", "服務", "拍攝日", "時間", "原價", "優惠代碼", "折扣", "金額", "已收", "付款方式", "狀態", "建立時間"], ...list.map((o) => [o.id, o.booking_id, o.customer_name, o.phone, o.service_name, o.date, o.time, o.list_price ?? o.amount, o.promo_code || "", o.discount || 0, o.amount, o.paid_amount, o.payment_method, o.status, fmtDateTime(o.created_at)])])}>匯出 CSV</button>
       </div>
       <div className="toolbar">
         <input className="input" placeholder="搜尋訂單編號／姓名／電話" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -65,7 +65,7 @@ export default function Orders() {
                   <td><b>{o.customer_name}</b><div className="small muted">{o.phone}</div></td>
                   <td>{o.service_name}</td>
                   <td>{o.date ? `${fmtDate(o.date)} ${o.time || ""}` : "—"}</td>
-                  <td>{money(o.amount)}{o.paid_amount > 0 && <div className="small muted">已收 {money(o.paid_amount)}</div>}</td>
+                  <td>{money(o.amount)}{o.discount > 0 && <div className="small" style={{ color: "var(--accent)" }}>{o.promo_code} 折 {money(o.discount)}</div>}{o.paid_amount > 0 && <div className="small muted">已收 {money(o.paid_amount)}</div>}</td>
                   <td><StatusBadge status={o.status} /></td>
                 </tr>
               ))}
@@ -279,6 +279,13 @@ export function OrderDetail() {
         {edit && (
           <div className="panel">
             <h3>金額與付款</h3>
+            {order.promo_code && (
+              <div className="alert alert-info small mb-2">
+                使用優惠 <b>{order.promo_code}</b>{order.promo_title && `｜${order.promo_title}`}<br />
+                原價 {money(order.list_price ?? order.amount + (order.discount || 0))}　折抵 {money(order.discount)}　→ 優惠後 {money((order.list_price ?? order.amount + (order.discount || 0)) - (order.discount || 0))}
+                <div className="muted">系統已自動算好；如需再調整，直接改下方「訂單金額」。</div>
+              </div>
+            )}
             <div className="form-grid">
               <Field label="訂單金額"><input className="input" type="number" value={edit.amount} onChange={(e) => setEdit({ ...edit, amount: e.target.value })} /></Field>
               <Field label="已收金額"><input className="input" type="number" value={edit.paid_amount} onChange={(e) => setEdit({ ...edit, paid_amount: e.target.value })} /></Field>

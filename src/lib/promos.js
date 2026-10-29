@@ -43,3 +43,28 @@ export const seen = {
   has: (key) => { try { return localStorage.getItem(`gime:${key}`) === "1"; } catch { return false; } },
   set: (key) => { try { localStorage.setItem(`gime:${key}`, "1"); } catch { /* 無痕模式時忽略 */ } },
 };
+
+/* ---------- 自動折扣 ---------- */
+// discount_type：none＝只標記、percent＝打折（85＝85 折）、amount＝折抵金額
+export const DISCOUNT_TYPES = { none: "只標記，不折扣", percent: "打折", amount: "折抵金額" };
+
+/** 顯示用折扣文字：85→「85 折」、90→「9 折」、amount→「折 NT$500」 */
+export function discountLabel(p) {
+  const v = Number(p?.discount_value) || 0;
+  if (p?.discount_type === "percent" && v > 0) return `${v % 10 === 0 ? v / 10 : v} 折`;
+  if (p?.discount_type === "amount" && v > 0) return `折 NT$ ${v.toLocaleString("zh-TW")}`;
+  return "";
+}
+
+/** 前台試算（與資料庫 promo_quote 同一套規則；最終金額以資料庫為準） */
+export function calcAmount(p, price) {
+  const base = Number(price) || 0;
+  const v = Number(p?.discount_value) || 0;
+  if (!p || base <= 0) return base;
+  if (p.discount_type === "percent" && v > 0) return Math.round((base * v) / 100);
+  if (p.discount_type === "amount" && v > 0) return Math.max(base - v, 0);
+  return base;
+}
+
+/** 這個活動是否適用某服務（沒勾選適用服務＝全部適用） */
+export const appliesTo = (p, serviceId) => !(p?.service_ids || []).length || p.service_ids.includes(serviceId);

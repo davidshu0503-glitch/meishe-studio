@@ -5,6 +5,7 @@ import { useAuth } from "../lib/auth";
 import { errMsg, kickNotifications, supabase } from "../lib/supabase";
 import { addDays, fmtDate, money, normPhone, twDate, WEEKDAYS, weekday } from "../lib/utils";
 import { Field, PageHero, useTitle } from "../components/ui";
+import { appliesTo, calcAmount, discountLabel } from "../lib/promos";
 
 const STEPS = ["選擇服務", "選擇時段", "填寫資料", "確認送出"];
 
@@ -68,6 +69,23 @@ export default function Booking() {
     else setPromoErr("查無此優惠代碼，或活動已結束");
   };
   const promoTag = promo ? `【優惠 ${promo.code}｜${promo.title}】` : "";
+  // 試算折扣：先問資料庫（會檢查名額、適用服務），資料庫還沒升級時用同一套規則在前台試算
+  const [quote, setQuote] = useState(null);
+  useEffect(() => {
+    if (!promo || !form.serviceId) { setQuote(null); return; }
+    let alive = true;
+    const svc = services.find((s) => s.id === form.serviceId);
+    supabase.rpc("promo_quote", { p_code: promo.code, p_service_id: form.serviceId }).then(({ data, error }) => {
+      if (!alive) return;
+      if (error || !data) {
+        const ok = appliesTo(promo, form.serviceId);
+        const amount = calcAmount(promo, svc?.price);
+        setQuote(ok ? { ok, amount, list_price: svc?.price || 0, discount: (svc?.price || 0) - amount, legacy: true } : { ok, error: `優惠「${promo.title}」不適用於「${svc?.name}」` });
+      } else setQuote(data);
+    });
+    return () => { alive = false; };
+  }, [promo?.code, form.serviceId, services]);
+  const priceFor = (s) => (promo && appliesTo(promo, s.id) ? calcAmount(promo, s.price) : s.price);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [done, setDone] = useState(null);
@@ -112,11 +130,18 @@ export default function Booking() {
 
   const submit = async () => {
     setSubmitting(true); setSubmitError("");
-    const { data, error } = await supabase.rpc("create_booking", {
+    const base = {
       p_service_id: form.serviceId, p_date: form.date, p_time: form.time, p_name: form.name.trim(), p_phone: form.phone.trim(),
       p_contact_method: form.contactMethod, p_email: form.contactMethod === "email" ? form.email.trim() : (form.email.trim() || null),
-      p_line_id: form.contactMethod === "line" ? form.lineId.trim() : null, p_note: [promoTag, form.note.trim()].filter(Boolean).join("\n").slice(0, 500),
-    });
+      p_line_id: form.contactMethod === "line" ? form.lineId.trim() : null,
+    };
+    const usePromo = promo && quote?.ok;
+    // 有優惠代碼：交給資料庫計算折扣後金額
+    let { data, error } = await supabase.rpc("create_booking", usePromo ? { ...base, p_note: form.note.trim(), p_promo_code: promo.code } : { ...base, p_note: form.note.trim() });
+    // 資料庫尚未執行 05-discount.sql：改用舊方式，把代碼寫進備註，由工作室手動調整金額
+    if (usePromo && error && /p_promo_code|Could not find the function|PGRST202|does not exist/i.test(error.message || "")) {
+      ({ data, error } = await supabase.rpc("create_booking", { ...base, p_note: [promoTag, form.note.trim()].filter(Boolean).join("\n").slice(0, 500) }));
+    }
     setSubmitting(false);
     if (error) {
       setSubmitError(errMsg(error));
@@ -150,7 +175,7 @@ export default function Booking() {
               <dl className="mt-3" style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "8px 18px", textAlign: "left", maxWidth: 360, margin: "24px auto" }}>
                 <dt className="muted">服務</dt><dd style={{ margin: 0 }}>{done.service}</dd>
                 <dt className="muted">時間</dt><dd style={{ margin: 0 }}>{fmtDate(done.date)} {done.time}</dd>
-                <dt className="muted">費用</dt><dd style={{ margin: 0 }}>{money(done.amount)}</dd>
+                <dt className="muted">費用</dt><dd style={{ margin: 0 }}>{money(done.amount)}{done.discount > 0 && <div className="small muted">原價 <s>{money(done.list_price)}</s>｜{done.promo_title || "優惠"}折抵 {money(done.discount)}</div>}</dd>
                 <dt className="muted">姓名</dt><dd style={{ margin: 0 }}>{done.name}</dd>
               </dl>
               {cfg.payment_info && <div className="alert alert-info" style={{ textAlign: "left", whiteSpace: "pre-line" }}><b>付款方式</b><br />{cfg.payment_info}</div>}
@@ -185,7 +210,12 @@ export default function Booking() {
           <div className="booking-layout">
             <div className="card">
               {promo && step < 4 && (
-                <div className="promo-applied"><span className="promo-code">優惠 <b>{promo.code}</b></span><span>{promo.title}{promo.subtitle && <span className="small muted">　{promo.subtitle}</span>}</span></div>
+                <div className="promo-applied">
+                  <span className="promo-code">優惠 <b>{promo.code}</b></span>
+                  {discountLabel(promo) && <span className="promo-badge">{discountLabel(promo)}</span>}
+                  <span>{promo.title}{promo.subtitle && <span className="small muted">　{promo.subtitle}</span>}</span>
+                  {quote && !quote.ok && <span className="err-text" style={{ flexBasis: "100%" }}>{quote.error}</span>}
+                </div>
               )}
               {step === 1 && (
                 <>
@@ -196,7 +226,9 @@ export default function Booking() {
                         <span className="kicker">{s.subtitle}</span>
                         <b>{s.name}</b>
                         <span className="small muted">{s.duration_label}</span>
-                        <span>{money(s.price)}<small className="muted">{s.price_note}</small></span>
+                        {priceFor(s) !== s.price
+                          ? <span><s className="muted small">{money(s.price)}</s> <b style={{ color: "var(--accent)" }}>{money(priceFor(s))}</b><small className="muted">{s.price_note}</small></span>
+                          : <span>{money(s.price)}<small className="muted">{s.price_note}</small></span>}
                       </button>
                     ))}
                   </div>
@@ -268,11 +300,12 @@ export default function Booking() {
                   <h3 className="title-md mb-2">確認預約內容</h3>
                   <dl style={{ display: "grid", gridTemplateColumns: "110px 1fr", gap: "10px 16px" }}>
                     <dt className="muted">服務項目</dt><dd style={{ margin: 0 }}>{service?.name}（{money(service?.price)}{service?.price_note}）</dd>
+                    {quote?.ok && quote.discount > 0 && <><dt className="muted">優惠後金額</dt><dd style={{ margin: 0 }}><b style={{ color: "var(--accent)" }}>{money(quote.amount)}</b>　<span className="small muted">折抵 {money(quote.discount)}</span></dd></>}
                     <dt className="muted">拍攝時間</dt><dd style={{ margin: 0 }}>{fmtDate(form.date)} {form.time}</dd>
                     <dt className="muted">姓名</dt><dd style={{ margin: 0 }}>{form.name}</dd>
                     <dt className="muted">電話</dt><dd style={{ margin: 0 }}>{form.phone}</dd>
                     <dt className="muted">{form.contactMethod === "email" ? "Email" : "LINE ID"}</dt><dd style={{ margin: 0 }}>{form.contactMethod === "email" ? form.email : form.lineId}</dd>
-                    {promo && <><dt className="muted">優惠</dt><dd style={{ margin: 0 }}>{promo.title}（代碼 {promo.code}）<div className="small muted">優惠內容以工作室確認為準</div></dd></>}
+                    {promo && <><dt className="muted">優惠</dt><dd style={{ margin: 0 }}>{promo.title}（代碼 {promo.code}）{quote && !quote.ok ? <div className="err-text">{quote.error}，送出時不會套用</div> : quote?.legacy && <div className="small muted">折扣金額以工作室確認為準</div>}</dd></>}
                     {form.note && <><dt className="muted">備註</dt><dd style={{ margin: 0, whiteSpace: "pre-line" }}>{form.note}</dd></>}
                   </dl>
                   {cfg.notice && <p className="small muted mt-2">{cfg.notice}</p>}
@@ -291,7 +324,10 @@ export default function Booking() {
                 <dt>服務</dt><dd>{service?.name || "—"}</dd>
                 <dt>日期</dt><dd>{form.date ? fmtDate(form.date) : "—"}</dd>
                 <dt>時段</dt><dd>{form.time || "—"}</dd>
-                <dt>費用</dt><dd>{service ? money(service.price) : "—"}</dd>
+                <dt>費用</dt><dd>{!service ? "—" : quote?.ok && quote.discount > 0
+                  ? <><s className="muted small">{money(quote.list_price)}</s> <b style={{ color: "var(--accent)" }}>{money(quote.amount)}</b></>
+                  : money(service.price)}</dd>
+                {quote?.ok && quote.discount > 0 && <><dt>優惠</dt><dd style={{ color: "var(--accent)" }}>－{money(quote.discount)}</dd></>}
               </dl>
               <p className="small muted">同一時段只接受一組預約，已被預約的時段會自動停用。</p>
             </aside>

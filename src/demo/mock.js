@@ -96,15 +96,18 @@ function seed() {
   const day = (d) => new Date(Date.now() + d * 86400000).toISOString();
   const promo = (o) => T.promotions.push({ ...DEFAULTS.promotions(), ...o });
   promo({ kind: "bar", title: "（示範）年末檔期開放預約，全家福與孕婦寫真名額有限", badge: "公告", cta_label: "看優惠活動", cta_link: "/offers", published: true, end_at: day(30), clicks: 37 });
-  promo({ kind: "hero", title: "（示範）全家福，畫成傳家的油畫", subtitle: "年末檔期・拍全家福加購厚塗油畫", badge: "檔期限定", image: "/works/oil-01.jpg", code: "FAMILY26", cta_label: "預約全家福", cta_link: "/booking?service=family", published: true, end_at: day(30), clicks: 52 });
-  promo({ kind: "offer", title: "（示範）全家福 × 厚塗油畫檔期", subtitle: "拍全家福，最喜歡的一張做成油畫掛畫", body: "示範用的活動內容。實際優惠請在後台「行銷管理」自行設定。", badge: "檔期限定", image: "/works/oil-03.jpg", code: "FAMILY26", cta_label: "預約全家福", cta_link: "/booking?service=family", service_ids: ["family"], published: true, end_at: day(30), sort: 1, clicks: 18 });
-  promo({ kind: "offer", title: "（示範）孕期紀念：寫真＋浮雕版", subtitle: "孕婦寫真加做石膏浮雕或奇幻風格", badge: "加購", image: "/works/sculpture-03.jpg", code: "BUMP26", cta_label: "預約孕婦寫真", cta_link: "/booking?service=portrait", service_ids: ["portrait"], published: true, end_at: day(12), sort: 2, clicks: 9 });
-  promo({ kind: "offer", title: "（示範）形象照＋一拍多風格", subtitle: "商務形象照加購普普、版畫、素描版本", badge: "新方案", image: "/works/setA-01.jpg", code: "STYLE7", cta_label: "預約形象照", cta_link: "/booking?service=business", service_ids: ["business", "ai_portrait"], published: true, sort: 3, clicks: 24 });
-  promo({ kind: "popup", title: "（示範）年末檔期開跑", subtitle: "全家福、孕婦寫真加購藝術風格，名額有限", image: "/works/gold-01.jpg", code: "FAMILY26", cta_label: "看優惠活動", cta_link: "/offers", published: true, end_at: day(30) });
+  promo({ kind: "hero", title: "（示範）全家福，畫成傳家的油畫", subtitle: "年末檔期・拍全家福加購厚塗油畫", badge: "檔期限定", image: "/works/oil-01.jpg", discount_type: "percent", discount_value: 90, cta_label: "預約全家福 9 折", cta_link: "/booking?service=family&promo=FAMILY26", published: true, end_at: day(30), clicks: 52 });
+  promo({ kind: "offer", title: "（示範）全家福 × 厚塗油畫檔期", subtitle: "拍全家福，最喜歡的一張做成油畫掛畫", body: "示範用的活動內容。實際優惠請在後台「行銷管理」自行設定。", badge: "檔期限定", image: "/works/oil-03.jpg", code: "FAMILY26", cta_label: "預約全家福", cta_link: "/booking?service=family", service_ids: ["family"], published: true, end_at: day(30), sort: 1, clicks: 18, discount_type: "percent", discount_value: 90, max_uses: 20 });
+  promo({ kind: "offer", title: "（示範）孕期紀念：寫真＋浮雕版", subtitle: "孕婦寫真加做石膏浮雕或奇幻風格", badge: "加購", image: "/works/sculpture-03.jpg", code: "BUMP26", cta_label: "預約孕婦寫真", cta_link: "/booking?service=portrait", service_ids: ["portrait"], published: true, end_at: day(12), sort: 2, clicks: 9, discount_type: "amount", discount_value: 800, max_uses: 5 });
+  promo({ kind: "offer", title: "（示範）形象照＋一拍多風格", subtitle: "商務形象照加購普普、版畫、素描版本", badge: "新方案", image: "/works/setA-01.jpg", code: "STYLE7", cta_label: "預約形象照", cta_link: "/booking?service=business", service_ids: ["business", "ai_portrait"], published: true, sort: 3, clicks: 24, discount_type: "percent", discount_value: 85 });
+  promo({ kind: "popup", title: "（示範）年末檔期開跑", subtitle: "全家福、孕婦寫真加購藝術風格，名額有限", image: "/works/gold-01.jpg", cta_label: "看優惠活動", cta_link: "/offers", published: true, end_at: day(30) });
   promo({ kind: "offer", title: "（示範）母親節長輩肖像", subtitle: "排程中：時間到會自動上架", badge: "排程", image: "/works/setF-02.jpg", code: "MOM27", published: true, start_at: day(20), end_at: day(50) });
   promo({ kind: "offer", title: "（示範）夏季證件照", subtitle: "已結束的活動", code: "SUMMER26", published: true, start_at: day(-160), end_at: day(-120), clicks: 41 });
   promo({ kind: "hero", title: "（示範）草稿：情人節雙人金箔", image: "/works/gold-06.jpg", published: false });
-  T.bookings.filter((b) => b.status === "已預約").slice(0, 2).forEach((b) => { b.note = `【優惠 FAMILY26｜（示範）全家福 × 厚塗油畫檔期】\n${b.note}`; });
+  T.orders.filter((o) => o.service_id === "family" && o.status !== "已取消").slice(0, 1).forEach((o) => {
+    Object.assign(o, { list_price: o.amount, discount: Math.round(o.amount * 0.1), amount: o.amount - Math.round(o.amount * 0.1), promo_code: "FAMILY26", promo_title: "（示範）全家福 × 厚塗油畫檔期" });
+    const b = T.bookings.find((x) => x.id === o.booking_id); if (b) b.promo_code = "FAMILY26";
+  });
 
   // 讓「資料整理」有東西可以試：舊的取消預約、舊通知、舊變更紀錄、沒有預約的客戶
   const old = (d) => new Date(Date.now() - d * 86400000).toISOString();
@@ -230,7 +233,7 @@ function checkUnique(table, row) {
 }
 const DEFAULTS = {
   portfolio: () => ({ id: rid(), title: "", description: "", images: [], featured: false, published: true, sort: 0, created_at: now() }),
-  promotions: () => ({ id: rid(), kind: "offer", title: "", subtitle: "", body: "", image: "", badge: "", code: "", cta_label: "", cta_link: "", service_ids: [], start_at: null, end_at: null, published: false, sort: 0, clicks: 0, created_at: now() }),
+  promotions: () => ({ id: rid(), kind: "offer", title: "", subtitle: "", body: "", image: "", badge: "", code: "", cta_label: "", cta_link: "", service_ids: [], start_at: null, end_at: null, published: false, sort: 0, clicks: 0, discount_type: "none", discount_value: 0, max_uses: 0, created_at: now() }),
   style_sets: () => ({ id: rid(), title: "", description: "", original: "", styles: [], published: true, sort: 0, created_at: now() }),
   categories: () => ({ tier: "addon", name_en: "", description: "", sort: 0 }),
   services: () => ({ tier: "entry", subtitle: "", description: "", price: 0, price_note: "", duration_label: "", features: [], image: "", featured: false, bookable: true, active: true, sort: 0 }),
@@ -286,6 +289,21 @@ function galleryGet(orderId, phone) {
   };
 }
 const RPC = {
+  promo_quote: ({ p_code, p_service_id }) => {
+    const c = String(p_code || "").trim().toUpperCase();
+    if (!c) return { ok: false, error: "請輸入優惠代碼" };
+    const p = T.promotions.find((x) => (x.code || "").toUpperCase() === c && x.published && (!x.start_at || x.start_at <= now()) && (!x.end_at || x.end_at > now()));
+    if (!p) return { ok: false, error: "查無此優惠代碼，或活動已結束" };
+    const sv = T.services.find((x) => x.id === p_service_id);
+    if ((p.service_ids || []).length && p_service_id && !p.service_ids.includes(p_service_id)) return { ok: false, error: `優惠「${p.title}」不適用於「${sv?.name}」`, title: p.title, code: p.code };
+    const used = T.orders.filter((o) => (o.promo_code || "").toUpperCase() === c && o.status !== "已取消").length;
+    if (p.max_uses > 0 && used >= p.max_uses) return { ok: false, error: `優惠「${p.title}」名額已滿`, title: p.title, code: p.code };
+    const price = sv?.price || 0;
+    let amount = price;
+    if (price > 0 && p.discount_type === "percent") amount = Math.round((price * p.discount_value) / 100);
+    if (price > 0 && p.discount_type === "amount") amount = Math.max(price - p.discount_value, 0);
+    return { ok: true, code: p.code, title: p.title, discount_type: p.discount_type, discount_value: p.discount_value, list_price: price, amount, discount: price - amount, remaining: p.max_uses > 0 ? p.max_uses - used : null };
+  },
   promo_click: ({ p_id }) => { const p = T.promotions.find((x) => x.id === p_id); if (p && p.published && (!p.start_at || p.start_at <= now()) && (!p.end_at || p.end_at > now())) p.clicks = (p.clicks || 0) + 1; return null; },
   get_booked_slots: ({ p_from, p_to }) => T.bookings.filter((b) => b.status !== "已取消" && b.date >= p_from && b.date <= p_to).map((b) => ({ date: b.date, time: b.time })),
   create_booking: (a) => {
@@ -309,6 +327,8 @@ const RPC = {
       if (T.bookings.filter((b) => normPhone(b.phone) === phone && b.status === "已預約" && b.date >= today).length >= 3) throw new DbError("此電話已有 3 筆以上的有效預約，如需再預約請直接與工作室聯繫");
     }
     if (T.bookings.some((b) => b.status !== "已取消" && b.date === a.p_date && b.time === a.p_time)) throw new DbError("很抱歉，此時段剛剛已被預約，請選擇其他時段");
+    let quote = null;
+    if ((a.p_promo_code || "").trim()) { quote = RPC.promo_quote({ p_code: a.p_promo_code, p_service_id: a.p_service_id }); if (!quote.ok) throw new DbError(quote.error); }
     let c = (currentUid && T.customers.find((x) => x.auth_user_id === currentUid)) || T.customers.find((x) => x.phone_norm === phone) || (email && T.customers.find((x) => x.email_norm === email));
     const emailFree = email && !T.customers.some((x) => x.email_norm === email);
     if (!c) c = insertRow("customers", { id: rid(), auth_user_id: null, name, phone: a.p_phone.trim(), email: emailFree ? a.p_email.trim() : null, line_id: (a.p_line_id || "").trim() || null, line_user_id: null, note: "", created_at: now() });
@@ -317,10 +337,11 @@ const RPC = {
       if ((a.p_line_id || "").trim()) c.line_id = a.p_line_id.trim();
     }
     const b = insertRow("bookings", { id: code("GS"), customer_id: c.id, service_id: s.id, service_name: s.name, date: a.p_date, time: a.p_time, status: "已預約", name, phone: a.p_phone.trim(),
-      contact_method: a.p_contact_method, email: (a.p_email || "").trim() || null, line_id: (a.p_line_id || "").trim() || null, note: a.p_note || "", source: isAdmin() ? "admin" : "web", created_at: now() });
+      contact_method: a.p_contact_method, email: (a.p_email || "").trim() || null, line_id: (a.p_line_id || "").trim() || null, note: a.p_note || "", source: isAdmin() ? "admin" : "web", promo_code: quote?.code || "", created_at: now() });
     const o = insertRow("orders", { id: code("OD"), booking_id: b.id, customer_id: c.id, customer_name: name, phone: a.p_phone.trim(), service_id: s.id, service_name: s.name, date: a.p_date, time: a.p_time,
-      amount: s.price, paid_amount: 0, payment_method: "", payment_ref: "", paid_at: null, status: "待付款", note: "", created_at: now() });
-    return { booking_id: b.id, order_id: o.id, service: s.name, date: a.p_date, time: a.p_time, amount: s.price, name };
+      amount: quote ? quote.amount : s.price, list_price: s.price, discount: quote ? quote.discount : 0, promo_code: quote?.code || "", promo_title: quote?.title || "",
+      paid_amount: 0, payment_method: "", payment_ref: "", paid_at: null, status: "待付款", note: "", created_at: now() });
+    return { booking_id: b.id, order_id: o.id, service: s.name, date: a.p_date, time: a.p_time, amount: o.amount, list_price: s.price, discount: o.discount, promo_code: o.promo_code, promo_title: o.promo_title, name };
   },
   gallery_get: (a) => galleryGet(a.p_order_id, a.p_phone),
   gallery_toggle: (a) => {

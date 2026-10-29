@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useSite } from "../lib/site";
 import { imgUrl } from "../lib/supabase";
-import { endsText, isExternal, seen, trackClick } from "../lib/promos";
+import { discountLabel, endsText, isExternal, seen, trackClick } from "../lib/promos";
 
 /** 活動按鈕／連結：站內路徑用 Link，外部網址開新分頁；點擊時記錄點擊數 */
 export function PromoLink({ promo, className, children, onClick }) {
@@ -28,6 +28,7 @@ export function PromoBar() {
     <div className="promo-bar" role="region" aria-label="公告">
       <PromoLink promo={bar} className="promo-bar-link">
         {bar.badge && <span className="promo-badge">{bar.badge}</span>}
+        {discountLabel(bar) && <span className="promo-bar-off">{discountLabel(bar)}</span>}
         <span className="promo-bar-text">{bar.title}{bar.subtitle && <small>{bar.subtitle}</small>}</span>
         <span className="promo-bar-cta">{bar.cta_label || "了解更多"} →</span>
       </PromoLink>
@@ -59,6 +60,7 @@ export function PromoPopup() {
           {open.badge && <span className="promo-badge">{open.badge}</span>}
           <h3>{open.title}</h3>
           {open.subtitle && <p>{open.subtitle}</p>}
+          {discountLabel(open) && <div className="offer-discount">{discountLabel(open)}</div>}
           {open.code && <div className="promo-code">優惠代碼 <b>{open.code}</b></div>}
           <div className="flex" style={{ justifyContent: "center", flexWrap: "wrap", marginTop: 6 }}>
             <PromoLink promo={open} className="btn btn-accent" onClick={close}>{open.cta_label || "立即預約"}</PromoLink>
@@ -89,6 +91,7 @@ export function OfferCard({ promo, services = [], full }) {
         {full && promo.body && <p className="offer-body">{promo.body}</p>}
         {names.length > 0 && <div className="small muted">適用：{names.join("、")}</div>}
         <div className="offer-meta">
+          {discountLabel(promo) && <span className="offer-discount">{discountLabel(promo)}</span>}
           {promo.code && <span className="promo-code">代碼 <b>{promo.code}</b></span>}
           {endsText(promo) && <span className="small muted">{endsText(promo)}</span>}
         </div>

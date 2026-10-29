@@ -5,6 +5,8 @@ import { priceNote, priceText, TIER_ORDER, TIERS } from "../lib/utils";
 import { PageHero, Reveal, useTitle } from "../components/ui";
 import StyleShowcase from "../components/StyleShowcase";
 import { PromoLink } from "../components/Promo";
+import { calcAmount, discountLabel } from "../lib/promos";
+import { money } from "../lib/utils";
 
 export default function Services() {
   useTitle("服務與價格");
@@ -28,7 +30,8 @@ export default function Services() {
       {s.features?.length > 0 && <ul>{s.features.map((f) => <li key={f}>{f}</li>)}</ul>}
       {offerFor(s.id) && (
         <PromoLink promo={offerFor(s.id)} className="svc-offer">
-          <b>優惠中｜{offerFor(s.id).title}</b>
+          <b>優惠中｜{offerFor(s.id).title}{discountLabel(offerFor(s.id)) && `（${discountLabel(offerFor(s.id))}）`}</b>
+          {Number(s.price) > 0 && calcAmount(offerFor(s.id), s.price) < s.price && <span>用代碼 {offerFor(s.id).code} 預約：<b>{money(calcAmount(offerFor(s.id), s.price))}</b>（原價 {money(s.price)}）</span>}
           {offerFor(s.id).subtitle && <span>{offerFor(s.id).subtitle}</span>}
         </PromoLink>
       )}
