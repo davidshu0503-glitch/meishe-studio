@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { errMsg, supabase } from "../../lib/supabase";
 import { csvDownload, fmtDate, money, normPhone, twDate } from "../../lib/utils";
-import { Confirm, Field, Modal, Spinner, StatusBadge, useToast } from "../../components/ui";
+import { BulkBar, CheckAll, CheckCell, Confirm, Field, Modal, Spinner, StatusBadge, useSelection, useSort, useToast } from "../../components/ui";
+import { deleteCustomers } from "../../lib/records";
 
 function CustomerModal({ customer, orders, onClose, onSaved, onDelete }) {
   const toast = useToast();
@@ -84,11 +85,21 @@ export default function Customers() {
     return m;
   }, [orders]);
 
-  const list = useMemo(() => (customers || []).filter((c) => {
+  const [onlyEmpty, setOnlyEmpty] = useState(false);
+  const { apply, th } = useSort("created_at", "desc");
+  const list = useMemo(() => apply((customers || []).filter((c) => {
+    if (onlyEmpty && (stats[c.id]?.count || c.auth_user_id)) return false;
     if (!q) return true;
     const k = q.toLowerCase();
     return [c.name, c.email, c.line_id, c.note].some((v) => (v || "").toLowerCase().includes(k)) || (normPhone(q) && (c.phone_norm || "").includes(normPhone(q)));
-  }), [customers, q]);
+  }), { count: (c) => stats[c.id]?.count || 0, total: (c) => stats[c.id]?.total || 0, last: (c) => stats[c.id]?.last || "" }), [customers, q, onlyEmpty, stats, apply]);
+  const selection = useSelection(list);
+  const [bulkDel, setBulkDel] = useState(null);
+  const doBulkDelete = async () => {
+    try { const n = await deleteCustomers(bulkDel); toast(`已刪除 ${n} 位客戶（歷史訂單保留）`); }
+    catch (e) { toast(errMsg(e), "err"); }
+    setBulkDel(null); selection.clear(); load();
+  };
 
   const open = customers?.find((c) => c.id === params.get("id"));
 
@@ -107,15 +118,20 @@ export default function Customers() {
       </div>
       <div className="toolbar">
         <input className="input" style={{ minWidth: 260 }} placeholder="搜尋姓名／電話／Email" value={q} onChange={(e) => setQ(e.target.value)} />
+        <label className="flex small"><input type="checkbox" checked={onlyEmpty} onChange={(e) => setOnlyEmpty(e.target.checked)} />只看沒有訂單、非會員的客戶</label>
         <span className="small muted">共 {list.length} 位客戶</span>
       </div>
+      <BulkBar selection={selection} label="位">
+        <button className="btn btn-sm btn-danger" onClick={() => setBulkDel(selection.ids)}>刪除所選</button>
+      </BulkBar>
       {!customers ? <Spinner /> : list.length === 0 ? <div className="empty">沒有客戶資料</div> : (
         <div className="table-wrap">
           <table className="tbl">
-            <thead><tr><th>姓名</th><th>電話</th><th className="hide-sm">Email／LINE</th><th>預約次數</th><th>消費金額</th><th>最後預約</th></tr></thead>
+            <thead><tr><CheckAll selection={selection} />{th("name", "姓名")}<th>電話</th><th className="hide-sm">Email／LINE</th>{th("count", "預約次數")}{th("total", "消費金額")}{th("last", "最後預約")}</tr></thead>
             <tbody>
               {list.map((c) => (
-                <tr key={c.id} className="click" onClick={() => setParams({ id: c.id })}>
+                <tr key={c.id} className={`click ${selection.has(c.id) ? "sel" : ""}`} onClick={() => setParams({ id: c.id })}>
+                  <CheckCell selection={selection} id={c.id} />
                   <td><b>{c.name}</b>{c.auth_user_id && <span className="badge info" style={{ marginLeft: 6 }}>會員</span>}</td>
                   <td>{c.phone}</td>
                   <td className="hide-sm small">{c.email || c.line_id || "—"}</td>
@@ -129,6 +145,7 @@ export default function Customers() {
         </div>
       )}
       {open && <CustomerModal key={open.id + open.updated_at} customer={open} orders={orders} onClose={() => setParams({})} onSaved={load} onDelete={() => setDel(open)} />}
+      {bulkDel && <Confirm title={`刪除 ${bulkDel.length} 位客戶？`} danger confirmText="確定刪除" message="客戶資料將無法復原，但他們的歷史預約與訂單會保留。已註冊會員的登入帳號不會被刪除。" onConfirm={doBulkDelete} onCancel={() => setBulkDel(null)} />}
       {del && <Confirm title="刪除客戶？" danger confirmText="確定刪除" message={`確定要刪除「${del.name}」嗎？客戶資料將無法復原，但歷史預約與訂單會保留。`} onConfirm={doDelete} onCancel={() => setDel(null)} />}
     </>
   );

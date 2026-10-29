@@ -3,7 +3,7 @@
 //  在瀏覽器記憶體裡模擬 Supabase：資料表、權限、RPC、觸發器、登入、照片空間、通知寄送。
 //  邏輯與 supabase/01-setup.sql 相同，方便在沒有後端的情況下完整試用。
 // =====================================================================
-import IMGS from "./demo-images.json";
+import { WORK_HERO, WORK_PORTFOLIO, WORK_STYLE_SETS } from "../lib/works";
 import TEMPLATES from "./templates.json";
 import { DEFAULT_BOOKING, DEFAULT_CATEGORIES, DEFAULT_SERVICES, DEFAULT_STUDIO } from "../lib/defaults";
 import { addDays, twDate } from "../lib/utils";
@@ -21,7 +21,7 @@ class DbError extends Error { constructor(msg, status = 400, c = "P0001") { supe
 /* ---------------- 資料 ---------------- */
 const T = {
   users: [], profiles: [], settings: [], categories: [], portfolio: [], services: [], blocked_dates: [],
-  customers: [], bookings: [], orders: [], albums: [], photos: [], notifications: [], audit_logs: [],
+  customers: [], bookings: [], orders: [], albums: [], photos: [], notifications: [], audit_logs: [], style_sets: [],
 };
 const PK = { settings: "key", categories: "slug", blocked_dates: "date" };
 const pk = (t) => PK[t] || "id";
@@ -36,25 +36,16 @@ function seed() {
 
   T.settings.push(
     { key: "studio", value: { ...DEFAULT_STUDIO, email: "hello@gime.studio" }, is_public: true },
-    { key: "hero", value: [
-      { image: IMGS.hero[0], headline: "用光線，顯影", sub: "生命中值得記住的瞬間", cat: "婚紗攝影" },
-      { image: IMGS.hero[1], headline: "看見最好的自己", sub: "形象攝影・個人寫真", cat: "形象攝影" },
-      { image: IMGS.hero[2], headline: "攝影 × AI 創畫", sub: "把真實影像延展成藝術作品", cat: "AI 影像創畫" },
-      { image: IMGS.hero[3], headline: "讓影像說出故事", sub: "影畫創作・光影敘事", cat: "影畫創作" },
-    ], is_public: true },
+    { key: "hero", value: WORK_HERO, is_public: true },
     { key: "booking", value: { ...DEFAULT_BOOKING, payment_info: "（示範）國泰世華 013｜帳號 000-00-000000-0｜戶名 即美創畫攝影" }, is_public: true },
     { key: "notify", value: { studio_email: "studio@gime.studio", enabled: {} }, is_public: false },
     { key: "templates", value: TEMPLATES, is_public: false },
   );
   T.categories = DEFAULT_CATEGORIES.map((c) => ({ ...c }));
   T.services = DEFAULT_SERVICES.map((s) => ({ ...s, image: "", active: true }));
-  DEFAULT_CATEGORIES.forEach((c) => {
-    const pool = IMGS[c.slug];
-    for (let i = 0; i < 8; i++) {
-      T.portfolio.push({ id: rid(), category: c.slug, title: `${c.name}・示範 ${String(i + 1).padStart(2, "0")}`, description: "示範圖片，請於後台上傳正式作品",
-        images: [pool[i % 4], pool[(i + 1) % 4], pool[(i + 2) % 4]], featured: i < 2, published: true, sort: i, created_at: now() });
-    }
-  });
+  T.services.forEach((sv) => { if (!sv.tier) sv.tier = "entry"; });
+  WORK_PORTFOLIO.forEach((p) => T.portfolio.push({ ...p, images: [...p.images], created_at: now() }));
+  WORK_STYLE_SETS.forEach((st) => T.style_sets.push({ ...JSON.parse(JSON.stringify(st)), created_at: now() }));
 
   const cust = (name, phone, email, line_id, auth) => {
     const c = { id: rid(), auth_user_id: auth || null, name, phone, email, line_id, line_user_id: null, note: "", created_at: now(), updated_at: now() };
@@ -90,7 +81,7 @@ function seed() {
   const album = (o, n, withFinal, selectedIdx = []) => {
     const a = { id: rid(), order_id: o.id, title: `${o.service_name}－${o.customer_name}`, max_select: 5, message: withFinal ? "" : "可選 5 張精修，加選每張 NT$ 200", selection_confirmed_at: withFinal ? now() : null, created_at: now() };
     T.albums.push(a);
-    const pool = [...IMGS.portrait, ...IMGS.wedding, ...IMGS.cinematic, ...IMGS.ai_art];
+    const pool = WORK_PORTFOLIO.filter((p) => ["portrait", "bw_studio", "maternity", "family"].includes(p.category)).map((p) => p.images[0]);
     for (let i = 0; i < n; i++) {
       T.photos.push({ id: rid(), album_id: a.id, path: pool[i % pool.length], final_path: withFinal && selectedIdx.includes(i) ? pool[i % pool.length] : null,
         filename: `IMG_${String(1021 + i).padStart(4, "0")}.jpg`, selected: selectedIdx.includes(i), retouch_status: withFinal && selectedIdx.includes(i) ? "已完成" : "未修圖", sort: i, created_at: now() });
@@ -100,6 +91,23 @@ function seed() {
   album(retouch, 6, false, [1, 3]);
   T.photos.filter((p) => p.selected).forEach((p) => (p.retouch_status = "修圖中"));
   album(done, 8, true, [0, 2, 5]);
+
+  // 讓「資料整理」有東西可以試：舊的取消預約、舊通知、舊變更紀錄、沒有預約的客戶
+  const old = (d) => new Date(Date.now() - d * 86400000).toISOString();
+  [[130, "11:00"], [150, "15:00"], [200, "10:00"]].forEach(([d, t], k) => {
+    const o = mk([chen, chang, lin][k], ["id_photo", "business", "family"][k], addDays(today, -d), t, "已取消", "已取消", null, { created_at: old(d + 7) });
+    T.bookings.find((b) => b.id === o.booking_id).created_at = old(d + 7);
+  });
+  for (let i = 0; i < 14; i++) {
+    T.notifications.push({ id: seq++, event: i % 2 ? "shoot_reminder" : "booking_created", ref_id: "old-" + i, channel: i % 3 ? "email" : "line", audience: "customer", customer_id: lin.id,
+      order_id: null, booking_id: null, payload: { name: lin.name, phone: lin.phone }, recipient: lin.email, subject: "（示範）舊通知", body: "", status: i % 5 === 0 ? "skipped" : "sent",
+      error: "", attempts: 1, processed: true, created_at: old(70 + i * 3), sent_at: old(70 + i * 3), claimed_at: null });
+  }
+  for (let i = 0; i < 9; i++) {
+    T.audit_logs.push({ id: seq++, actor: admin.id, actor_email: admin.email, action: "update", entity: "services", entity_id: "portrait",
+      before: { price: 6000 + i * 100 }, after: { price: 6100 + i * 100 }, created_at: old(380 + i * 20) });
+  }
+  [["黃先生", "0966-111-222"], ["周小姐", "0977-333-444"]].forEach(([n, ph]) => { cust(n, ph, null, null, null).created_at = old(240); });
 
   window.__GIME_DEMO_INFO = { admin: admin.email, member: member.email, password: "demo1234", galleryOrder: galleryOrder.id, galleryPhone: "0912345678" };
 }
@@ -113,7 +121,7 @@ function visible(table, row) {
   switch (table) {
     case "settings": return row.is_public;
     case "categories": case "blocked_dates": return true;
-    case "portfolio": return row.published;
+    case "portfolio": case "style_sets": return row.published;
     case "services": return row.active;
     case "profiles": return row.id === currentUid;
     case "customers": return !!currentUid && row.auth_user_id === currentUid;
@@ -124,7 +132,7 @@ function visible(table, row) {
 }
 
 /* ---------------- 稽核與通知 ---------------- */
-const AUDITED = ["customers", "bookings", "orders", "services", "portfolio", "settings", "categories", "blocked_dates"];
+const AUDITED = ["customers", "bookings", "orders", "services", "portfolio", "style_sets", "settings", "categories", "blocked_dates"];
 function audit(table, action, before, after) {
   if (!AUDITED.includes(table)) return;
   if (action === "update") {
@@ -207,7 +215,9 @@ function checkUnique(table, row) {
 }
 const DEFAULTS = {
   portfolio: () => ({ id: rid(), title: "", description: "", images: [], featured: false, published: true, sort: 0, created_at: now() }),
-  services: () => ({ subtitle: "", description: "", price: 0, price_note: "", duration_label: "", features: [], image: "", featured: false, bookable: true, active: true, sort: 0 }),
+  style_sets: () => ({ id: rid(), title: "", description: "", original: "", styles: [], published: true, sort: 0, created_at: now() }),
+  categories: () => ({ tier: "addon", name_en: "", description: "", sort: 0 }),
+  services: () => ({ tier: "entry", subtitle: "", description: "", price: 0, price_note: "", duration_label: "", features: [], image: "", featured: false, bookable: true, active: true, sort: 0 }),
   albums: () => ({ id: rid(), title: "", max_select: 0, message: "", selection_confirmed_at: null, created_at: now() }),
   photos: () => ({ id: rid(), final_path: null, filename: "", selected: false, retouch_status: "未修圖", sort: 0, created_at: now() }),
   blocked_dates: () => ({ reason: "" }),

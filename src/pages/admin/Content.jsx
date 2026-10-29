@@ -1,10 +1,27 @@
 import { useEffect, useRef, useState } from "react";
 import { errMsg, imgUrl, supabase } from "../../lib/supabase";
 import { useSite } from "../../lib/site";
-import { EVENT_LABELS, resizeImage, uid, WEEKDAYS } from "../../lib/utils";
-import { Confirm, Field, Modal, Spinner, useToast } from "../../components/ui";
+import { EVENT_LABELS, priceNote, priceText, resizeImage, TIER_KEYS, TIER_ORDER, TIERS, tierOf, uid, WEEKDAYS } from "../../lib/utils";
+import { BulkBar, Confirm, Field, Modal, Spinner, useSelection, useToast } from "../../components/ui";
+import { setFrames } from "../../components/StyleShowcase";
 
-const TABS = [["studio", "工作室資訊"], ["hero", "首頁輪播"], ["services", "服務與價格"], ["portfolio", "作品集"], ["categories", "作品分類"], ["booking", "預約設定"], ["notify", "通知設定"]];
+const TABS = [["studio", "工作室資訊"], ["hero", "首頁輪播"], ["oneshot", "一拍多風格"], ["categories", "作品分類與分層"], ["portfolio", "作品集"], ["services", "服務與價格"], ["booking", "預約設定"], ["notify", "通知設定"]];
+
+const TierPill = ({ tier }) => <span className={`tier-pill ${tier}`}>{TIERS[tier]?.name}</span>;
+const isStoragePath = (p) => p && !/^(https?:|data:|blob:|\/)/.test(p);
+
+/** 分類下拉選單：依 主力→加值→引流→不顯示 分組 */
+function CategorySelect({ categories, value, onChange, counts, includeNone }) {
+  return (
+    <select className="select" value={value} onChange={(e) => onChange(e.target.value)}>
+      {includeNone && <option value="">選擇分類…</option>}
+      {TIER_KEYS.map((t) => {
+        const list = categories.filter((c) => c.tier === t);
+        return list.length ? <optgroup key={t} label={`${TIERS[t].name}（${TIERS[t].label || "不在網站顯示"}）`}>{list.map((c) => <option key={c.slug} value={c.slug}>{c.name}{counts ? `（${counts[c.slug] || 0}）` : ""}</option>)}</optgroup> : null;
+      })}
+    </select>
+  );
+}
 
 async function saveSetting(key, value, isPublic = true) {
   return supabase.from("settings").upsert({ key, value, is_public: isPublic });
@@ -107,10 +124,18 @@ function ServicesTab() {
   const toast = useToast();
   const [rows, setRows] = useState(null);
   const [edit, setEdit] = useState(null);
-  const load = () => supabase.from("services").select("*").order("sort").then(({ data }) => setRows(data || []));
+  const load = () => supabase.from("services").select("*").order("sort").then(({ data }) => setRows((data || []).map((r) => ({ ...r, tier: tierOf(r) }))
+    .sort((a, b) => TIER_KEYS.indexOf(a.tier) - TIER_KEYS.indexOf(b.tier) || a.sort - b.sort)));
   useEffect(() => { load(); }, []);
+  const [del, setDel] = useState(null);
+  const doDelete = async () => {
+    const { error } = await supabase.from("services").delete().eq("id", del.id);
+    setDel(null);
+    if (error) return toast(errMsg(error), "err");
+    toast("服務已刪除（既有預約與訂單保留）"); load(); reload();
+  };
   const save = async () => {
-    const row = { ...edit, price: Number(edit.price) || 0, sort: Number(edit.sort) || 0, features: (edit.featuresText || "").split("\n").map((s) => s.trim()).filter(Boolean) };
+    const row = { ...edit, tier: edit.tier || "entry", price: Number(edit.price) || 0, sort: Number(edit.sort) || 0, features: (edit.featuresText || "").split("\n").map((s) => s.trim()).filter(Boolean) };
     delete row.featuresText; delete row.isNew; delete row.updated_at;
     if (!/^[a-z0-9_-]+$/.test(row.id)) return toast("代碼只能用小寫英文、數字、底線", "err");
     const { error } = edit.isNew ? await supabase.from("services").insert(row) : await supabase.from("services").update(row).eq("id", row.id);
@@ -120,15 +145,17 @@ function ServicesTab() {
   if (!rows) return <Spinner />;
   return (
     <>
-      <div className="flex mb-2"><button className="btn btn-sm" onClick={() => setEdit({ isNew: true, id: "", name: "", subtitle: "", description: "", price: 0, price_note: "", duration_label: "", featuresText: "", image: "", featured: false, bookable: true, active: true, sort: rows.length + 1 })}>＋ 新增服務</button></div>
+      <p className="small muted mb-2">網站「服務與價格」頁會依 <b>主力 → 加值 → 引流</b> 分區顯示。價格填 0 會顯示「洽詢報價」。</p>
+      <div className="flex mb-2"><button className="btn btn-sm" onClick={() => setEdit({ isNew: true, tier: "entry", id: "", name: "", subtitle: "", description: "", price: 0, price_note: "", duration_label: "", featuresText: "", image: "", featured: false, bookable: true, active: true, sort: rows.length + 1 })}>＋ 新增服務</button></div>
       <div className="table-wrap">
         <table className="tbl">
-          <thead><tr><th>排序</th><th>服務</th><th>價格</th><th>線上預約</th><th>顯示</th><th></th></tr></thead>
+          <thead><tr><th>分層</th><th>排序</th><th>服務</th><th>價格</th><th>線上預約</th><th>顯示</th><th></th></tr></thead>
           <tbody>{rows.map((s) => (
             <tr key={s.id}>
+              <td><TierPill tier={s.tier} /></td>
               <td>{s.sort}</td><td><b>{s.name}</b> <span className="small muted">{s.subtitle}</span>{s.featured && <span className="badge warn" style={{ marginLeft: 6 }}>推薦</span>}</td>
-              <td>NT$ {s.price.toLocaleString()}{s.price_note}</td><td>{s.bookable ? "✓" : "洽詢"}</td><td>{s.active ? "顯示" : <span className="muted">隱藏</span>}</td>
-              <td><button className="btn btn-ghost btn-sm" onClick={() => setEdit({ ...s, featuresText: (s.features || []).join("\n") })}>編輯</button></td>
+              <td>{priceText(s)}{priceNote(s)}</td><td>{s.bookable ? "✓" : "洽詢"}</td><td>{s.active ? "顯示" : <span className="muted">隱藏</span>}</td>
+              <td style={{ whiteSpace: "nowrap" }}><button className="btn btn-ghost btn-sm" onClick={() => setEdit({ ...s, featuresText: (s.features || []).join("\n") })}>編輯</button>{" "}<button className="btn btn-ghost btn-sm btn-del" onClick={() => setDel(s)}>刪除</button></td>
             </tr>
           ))}</tbody>
         </table>
@@ -136,11 +163,14 @@ function ServicesTab() {
       {edit && (
         <Modal title={edit.isNew ? "新增服務" : `編輯：${edit.name}`} wide onClose={() => setEdit(null)} actions={<><button className="btn btn-ghost btn-sm" onClick={() => setEdit(null)}>取消</button><button className="btn btn-sm" onClick={save}>儲存</button></>}>
           <div className="form-grid">
+            <Field label="分層" full>
+              <div className="seg">{TIER_KEYS.map((t) => <button key={t} type="button" className={edit.tier === t ? "on" : ""} onClick={() => setEdit({ ...edit, tier: t })}>{TIERS[t].name}{TIERS[t].label && `・${TIERS[t].label}`}</button>)}</div>
+            </Field>
             <Field label="代碼（英文，建立後不可改）"><input className="input" value={edit.id} disabled={!edit.isNew} onChange={(e) => setEdit({ ...edit, id: e.target.value.toLowerCase() })} /></Field>
             <Field label="名稱"><input className="input" value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></Field>
             <Field label="英文副標"><input className="input" value={edit.subtitle} onChange={(e) => setEdit({ ...edit, subtitle: e.target.value })} /></Field>
             <Field label="拍攝時間"><input className="input" value={edit.duration_label} onChange={(e) => setEdit({ ...edit, duration_label: e.target.value })} /></Field>
-            <Field label="價格（數字）"><input className="input" type="number" value={edit.price} onChange={(e) => setEdit({ ...edit, price: e.target.value })} /></Field>
+            <Field label="價格（數字，0＝洽詢報價）"><input className="input" type="number" value={edit.price} onChange={(e) => setEdit({ ...edit, price: e.target.value })} /></Field>
             <Field label="價格後綴（如「起」「／2小時」）"><input className="input" value={edit.price_note} onChange={(e) => setEdit({ ...edit, price_note: e.target.value })} /></Field>
             <Field label="說明" full><textarea className="textarea" style={{ minHeight: 60 }} value={edit.description} onChange={(e) => setEdit({ ...edit, description: e.target.value })} /></Field>
             <Field label="方案內容（一行一項）" full><textarea className="textarea" value={edit.featuresText} onChange={(e) => setEdit({ ...edit, featuresText: e.target.value })} /></Field>
@@ -155,6 +185,7 @@ function ServicesTab() {
           </div>
         </Modal>
       )}
+      {del && <Confirm title={`刪除服務「${del.name}」？`} danger confirmText="確定刪除" message="網站上不再顯示此服務。已經成立的預約與訂單會保留原本的服務名稱。只想暫時下架的話，編輯時取消勾選「在網站顯示」即可。" onConfirm={doDelete} onCancel={() => setDel(null)} />}
     </>
   );
 }
@@ -168,20 +199,25 @@ function PortfolioTab() {
   const [edit, setEdit] = useState(null);
   const [del, setDel] = useState(null);
   const [busy, setBusy] = useState("");
+  const [moveTo, setMoveTo] = useState("");
   const addRef = useRef();
   const imgRef = useRef();
 
   const load = () => supabase.from("portfolio").select("*").order("sort").order("created_at", { ascending: false }).then(({ data }) => setRows(data || []));
   useEffect(() => { load(); }, []);
   const after = () => { load(); reload(); };
+  const list = (rows || []).filter((r) => (cat === "__none" ? !categories.some((c) => c.slug === r.category) : r.category === cat));
+  const selection = useSelection(list);
+  const counts = (rows || []).reduce((m, r) => ({ ...m, [r.category]: (m[r.category] || 0) + 1 }), {});
+  const orphans = (rows || []).filter((r) => !categories.some((c) => c.slug === r.category)).length;
 
   const addWorks = async (files, asOne) => {
     files = files.filter((f) => f.type.startsWith("image/"));
-    if (!files.length) return;
+    if (!files.length || cat === "__none") return;
     try {
       const paths = [];
       for (let i = 0; i < files.length; i++) { setBusy(`上傳中 ${i + 1}/${files.length}`); paths.push(await uploadPortfolioImage(files[i])); }
-      const base = (rows || []).filter((r) => r.category === cat).length;
+      const base = list.length;
       const inserts = asOne
         ? [{ category: cat, title: files[0].name.replace(/\.\w+$/, ""), images: paths, sort: base }]
         : paths.map((p, i) => ({ category: cat, title: files[i].name.replace(/\.\w+$/, ""), images: [p], sort: base + i }));
@@ -199,31 +235,52 @@ function PortfolioTab() {
     toast("作品已更新"); setEdit(null); after();
   };
 
+  /** 刪除作品（可多件）：連同上傳到雲端的圖片檔 */
   const doDelete = async () => {
-    const paths = (del.images || []).filter((p) => !/^https?:/.test(p));
-    if (paths.length) await supabase.storage.from("portfolio").remove(paths);
-    await supabase.from("portfolio").delete().eq("id", del.id);
-    setDel(null); toast("作品已刪除"); after();
+    const items = del;
+    const paths = items.flatMap((it) => (it.images || []).filter(isStoragePath));
+    if (paths.length) await supabase.storage.from("portfolio").remove(paths).catch(() => {});
+    const { error } = await supabase.from("portfolio").delete().in("id", items.map((it) => it.id));
+    setDel(null); selection.clear();
+    if (error) return toast(errMsg(error), "err");
+    toast(`已刪除 ${items.length} 件作品`); after();
+  };
+
+  const bulkUpdate = async (patch, msg) => {
+    const { error } = await supabase.from("portfolio").update(patch).in("id", selection.ids);
+    if (error) return toast(errMsg(error), "err");
+    toast(msg); selection.clear(); after();
   };
 
   if (!rows) return <Spinner />;
-  const list = rows.filter((r) => r.category === cat);
+  const curCat = categories.find((c) => c.slug === cat);
   return (
     <>
       <div className="toolbar">
-        <select className="select" value={cat} onChange={(e) => setCat(e.target.value)}>{categories.map((c) => <option key={c.slug} value={c.slug}>{c.name}（{rows.filter((r) => r.category === c.slug).length}）</option>)}</select>
-        <button className="btn btn-sm" disabled={!!busy} onClick={() => { addRef.current.dataset.one = ""; addRef.current.click(); }}>＋ 上傳作品（一張一件）</button>
-        <button className="btn btn-ghost btn-sm" disabled={!!busy} onClick={() => { addRef.current.dataset.one = "1"; addRef.current.click(); }}>＋ 多張合成一件作品</button>
+        <CategorySelect categories={categories} value={cat} onChange={(v) => { setCat(v); selection.clear(); }} counts={counts} />
+        {orphans > 0 && <button className={`btn btn-sm ${cat === "__none" ? "" : "btn-ghost"}`} onClick={() => setCat("__none")}>未分類（{orphans}）</button>}
+        {curCat && <TierPill tier={curCat.tier} />}
+        <button className="btn btn-sm" disabled={!!busy || cat === "__none"} onClick={() => { addRef.current.dataset.one = ""; addRef.current.click(); }}>＋ 上傳作品（一張一件）</button>
+        <button className="btn btn-ghost btn-sm" disabled={!!busy || cat === "__none"} onClick={() => { addRef.current.dataset.one = "1"; addRef.current.click(); }}>＋ 多張合成一件作品</button>
         {busy && <span className="small muted">{busy}</span>}
         <input ref={addRef} type="file" accept="image/*" multiple hidden onChange={(e) => { const f = [...e.target.files]; e.target.value = ""; addWorks(f, addRef.current.dataset.one === "1"); }} />
       </div>
-      <p className="small muted mb-2">小技巧：一件作品可放多張照片，網站上會自動輪播；勾選「精選」會顯示在首頁。上傳時會自動壓縮成網頁尺寸。</p>
+      <p className="small muted mb-2">點作品編輯；勾選左上角方框可以一次移動分類、隱藏或刪除。一件作品可放多張照片，網站上會自動輪播。勾選「精選」的作品會優先當分類封面。</p>
+      <BulkBar selection={selection} label="件">
+        <CategorySelect categories={categories} value={moveTo} onChange={setMoveTo} includeNone />
+        <button className="btn btn-ghost btn-sm" disabled={!moveTo} onClick={() => bulkUpdate({ category: moveTo }, "已移動分類")}>移到此分類</button>
+        <button className="btn btn-ghost btn-sm" onClick={() => bulkUpdate({ published: false }, "已隱藏")}>隱藏</button>
+        <button className="btn btn-ghost btn-sm" onClick={() => bulkUpdate({ published: true }, "已公開")}>公開</button>
+        <button className="btn btn-sm btn-danger" onClick={() => setDel(list.filter((r) => selection.has(r.id)))}>刪除所選</button>
+      </BulkBar>
+      {list.length > 0 && <label className="flex small mb-2"><input type="checkbox" checked={selection.all} onChange={selection.toggleAll} />全選這個分類（{list.length} 件）</label>}
       {list.length === 0 ? <div className="empty">此分類還沒有作品</div> : (
         <div className="thumbs" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
           {list.map((p) => (
-            <div key={p.id} className="thumb" style={{ aspectRatio: "4/5", cursor: "pointer" }} onClick={() => setEdit({ ...p })}>
+            <div key={p.id} className={`thumb ${selection.has(p.id) ? "sel" : ""}`} style={{ aspectRatio: "4/5", cursor: "pointer", opacity: p.published ? 1 : 0.55 }} onClick={() => setEdit({ ...p })}>
               <img src={imgUrl(p.images?.[0], "portfolio")} alt={p.title} loading="lazy" />
-              <span className="t-badge">{p.images?.length || 0} 張{p.featured ? "・精選" : ""}{p.published ? "" : "・隱藏"}</span>
+              <label className="t-check" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selection.has(p.id)} onChange={() => selection.toggle(p.id)} aria-label="選取" /></label>
+              <span className="t-badge r">{p.images?.length || 0} 張{p.featured ? "・精選" : ""}{p.published ? "" : "・隱藏"}</span>
               <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,.55)", color: "#fff", fontSize: 13.5, padding: "4px 8px" }}>{p.title}</div>
             </div>
           ))}
@@ -231,7 +288,7 @@ function PortfolioTab() {
       )}
       {edit && (
         <Modal title="編輯作品" wide onClose={() => setEdit(null)} actions={<>
-          <button className="btn btn-ghost btn-sm" onClick={() => { setDel(edit); setEdit(null); }}>刪除作品</button>
+          <button className="btn btn-ghost btn-sm btn-del" onClick={() => { setDel([edit]); setEdit(null); }}>刪除作品</button>
           <span className="grow" />
           <button className="btn btn-ghost btn-sm" onClick={() => setEdit(null)}>取消</button>
           <button className="btn btn-sm" onClick={saveEdit}>儲存</button>
@@ -257,30 +314,33 @@ function PortfolioTab() {
           </div>
           <div className="form-grid">
             <Field label="作品名稱"><input className="input" value={edit.title} onChange={(e) => setEdit({ ...edit, title: e.target.value })} /></Field>
-            <Field label="分類"><select className="select" value={edit.category || ""} onChange={(e) => setEdit({ ...edit, category: e.target.value })}>{categories.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}</select></Field>
+            <Field label="分類"><CategorySelect categories={categories} value={edit.category || ""} onChange={(v) => setEdit({ ...edit, category: v })} includeNone /></Field>
             <Field label="說明（燈箱顯示）" full><input className="input" value={edit.description} onChange={(e) => setEdit({ ...edit, description: e.target.value })} /></Field>
             <Field label="排序（數字小的在前）"><input className="input" type="number" value={edit.sort} onChange={(e) => setEdit({ ...edit, sort: e.target.value })} /></Field>
             <Field label="選項"><div className="flex small">
-              <label className="flex"><input type="checkbox" checked={edit.featured} onChange={(e) => setEdit({ ...edit, featured: e.target.checked })} />首頁精選</label>
+              <label className="flex"><input type="checkbox" checked={edit.featured} onChange={(e) => setEdit({ ...edit, featured: e.target.checked })} />精選（分類封面）</label>
               <label className="flex"><input type="checkbox" checked={edit.published} onChange={(e) => setEdit({ ...edit, published: e.target.checked })} />公開顯示</label>
             </div></Field>
           </div>
         </Modal>
       )}
-      {del && <Confirm title="刪除作品？" danger message={`「${del.title}」與其 ${del.images?.length || 0} 張照片將永久刪除。`} onConfirm={doDelete} onCancel={() => setDel(null)} />}
+      {del && <Confirm title={del.length > 1 ? `刪除 ${del.length} 件作品？` : "刪除作品？"} danger confirmText="確定刪除"
+        message={del.length > 1 ? `這 ${del.length} 件作品與其中的照片將永久刪除。` : `「${del[0].title}」與其 ${del[0].images?.length || 0} 張照片將永久刪除。`}
+        onConfirm={doDelete} onCancel={() => setDel(null)} />}
     </>
   );
 }
 
-/* ---------- 作品分類 ---------- */
+/* ---------- 作品分類與分層 ---------- */
 function CategoriesTab() {
   const { categories, reload } = useSite();
   const toast = useToast();
   const [list, setList] = useState(categories.map((c) => ({ ...c, orig: c.slug })));
+  const upd = (i, k, v) => setList((l) => l.map((x, j) => (j === i ? { ...x, [k]: v } : x)));
   const save = async () => {
     for (const c of list) {
       if (!/^[a-z0-9_-]+$/.test(c.slug) || !c.name.trim()) return toast("代碼只能用小寫英文數字底線，名稱不可空白", "err");
-      const row = { slug: c.slug, name: c.name.trim(), sort: Number(c.sort) || 0 };
+      const row = { slug: c.slug, name: c.name.trim(), sort: Number(c.sort) || 0, tier: c.tier || "addon", name_en: c.name_en || "", description: c.description || "" };
       const { error } = c.orig ? await supabase.from("categories").update(row).eq("slug", c.orig) : await supabase.from("categories").insert(row);
       if (error) return toast(errMsg(error), "err");
     }
@@ -290,19 +350,129 @@ function CategoriesTab() {
   };
   return (
     <div className="panel">
-      <div className="list">
-        {list.map((c, i) => (
-          <div key={i} className="flex flex-wrap">
-            <input className="input" style={{ width: 90 }} type="number" value={c.sort} onChange={(e) => setList((l) => l.map((x, j) => (j === i ? { ...x, sort: e.target.value } : x)))} title="排序" />
-            <input className="input" style={{ width: 160 }} value={c.slug} placeholder="代碼 (英文)" onChange={(e) => setList((l) => l.map((x, j) => (j === i ? { ...x, slug: e.target.value.toLowerCase() } : x)))} />
-            <input className="input grow" value={c.name} placeholder="顯示名稱" onChange={(e) => setList((l) => l.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} />
-            <button className="btn btn-ghost btn-sm" onClick={() => setList((l) => l.filter((_, j) => j !== i))}>刪除</button>
+      <p className="small muted mb-2">網站的首頁與作品集會依分層排序：<b>一拍多風格 → 主力 → 加值 → 引流</b>。前台顯示給客人的名稱是「典藏藝術肖像／風格加購／入門拍攝」，不會出現「主力、引流」等字眼。選「不顯示」的分類會從網站隱藏。</p>
+      {TIER_KEYS.map((t) => {
+        const idx = list.map((c, i) => [c, i]).filter(([c]) => (c.tier || "addon") === t);
+        return (
+          <div key={t} className="mb-3">
+            <h3 className="flex" style={{ marginBottom: 10 }}><TierPill tier={t} />{TIERS[t].label || "不在網站顯示"}<span className="small muted">（{idx.length}）</span></h3>
+            {idx.length === 0 && <div className="small muted">沒有分類</div>}
+            <div className="list">
+              {idx.map(([c, i]) => (
+                <div key={i} className="flex flex-wrap" style={{ alignItems: "flex-start", paddingBottom: 10, borderBottom: "1px dashed var(--line-2)" }}>
+                  <input className="input" style={{ width: 64 }} type="number" value={c.sort} onChange={(e) => upd(i, "sort", e.target.value)} title="排序" />
+                  <input className="input" style={{ width: 140 }} value={c.name} placeholder="顯示名稱" onChange={(e) => upd(i, "name", e.target.value)} />
+                  <input className="input" style={{ width: 150 }} value={c.name_en || ""} placeholder="英文名稱（選填）" onChange={(e) => upd(i, "name_en", e.target.value)} />
+                  <select className="select" style={{ width: "auto" }} value={c.tier || "addon"} onChange={(e) => upd(i, "tier", e.target.value)}>
+                    {TIER_KEYS.map((k) => <option key={k} value={k}>{TIERS[k].name}</option>)}
+                  </select>
+                  <input className="input grow" style={{ minWidth: 220 }} value={c.description || ""} placeholder="一句話說明（首頁分類卡片顯示）" onChange={(e) => upd(i, "description", e.target.value)} />
+                  <input className="input" style={{ width: 130 }} value={c.slug} placeholder="代碼 (英文)" title="網址代碼" onChange={(e) => upd(i, "slug", e.target.value.toLowerCase())} />
+                  <button className="btn btn-ghost btn-sm btn-del" onClick={() => setList((l) => l.filter((_, j) => j !== i))}>刪除</button>
+                </div>
+              ))}
+            </div>
           </div>
-        ))}
-      </div>
-      <p className="small muted mt-2">刪除分類不會刪除作品，作品會變成「未分類」，可再到作品集重新指定。</p>
-      <div className="flex mt-2"><button className="btn btn-ghost btn-sm" onClick={() => setList((l) => [...l, { slug: "", name: "", sort: l.length + 1 }])}>＋ 新增分類</button><button className="btn btn-sm" onClick={save}>儲存</button></div>
+        );
+      })}
+      <p className="small muted mt-2">刪除分類不會刪除作品，作品會變成「未分類」，可再到「作品集」重新指定或批次刪除。</p>
+      <div className="flex mt-2"><button className="btn btn-ghost btn-sm" onClick={() => setList((l) => [...l, { slug: "", name: "", name_en: "", description: "", tier: "addon", sort: l.length + 1 }])}>＋ 新增分類</button><button className="btn btn-sm" onClick={save}>儲存</button></div>
     </div>
+  );
+}
+
+/* ---------- 一拍多風格 ---------- */
+function StyleSetsTab() {
+  const { reload } = useSite();
+  const toast = useToast();
+  const [rows, setRows] = useState(null);
+  const [missing, setMissing] = useState(false);
+  const [edit, setEdit] = useState(null);
+  const [del, setDel] = useState(null);
+  const [busy, setBusy] = useState("");
+  const addRef = useRef();
+
+  const load = () => supabase.from("style_sets").select("*").order("sort").then(({ data, error }) => { setMissing(!!error); setRows(data || []); });
+  useEffect(() => { load(); }, []);
+
+  const addStyles = async (files) => {
+    files = files.filter((f) => f.type.startsWith("image/"));
+    try {
+      const add = [];
+      for (let i = 0; i < files.length; i++) { setBusy(`上傳中 ${i + 1}/${files.length}`); add.push({ image: await uploadPortfolioImage(files[i]), label: files[i].name.replace(/\.\w+$/, "") }); }
+      setEdit((x) => ({ ...x, styles: [...(x.styles || []), ...add] }));
+    } catch (e) { toast(errMsg(e), "err"); }
+    setBusy("");
+  };
+  const updStyle = (i, k, v) => setEdit((x) => ({ ...x, styles: x.styles.map((s, j) => (j === i ? { ...s, [k]: v } : s)) }));
+  const moveStyle = (i, d) => setEdit((x) => { const n = [...x.styles]; const [it] = n.splice(i, 1); n.splice(i + d, 0, it); return { ...x, styles: n }; });
+
+  const save = async () => {
+    const styles = (edit.styles || []).filter((s) => s.image).map((s) => ({ image: s.image, label: (s.label || "").trim() || "風格" }));
+    if (!edit.title.trim()) return toast("請填寫標題", "err");
+    if (!styles.length) return toast("至少要有一張風格圖", "err");
+    const row = { title: edit.title.trim(), description: edit.description || "", original: edit.original || "", styles, published: !!edit.published, sort: Number(edit.sort) || 0 };
+    const { error } = edit.id ? await supabase.from("style_sets").update(row).eq("id", edit.id) : await supabase.from("style_sets").insert(row);
+    if (error) return toast(errMsg(error), "err");
+    toast("已儲存"); setEdit(null); load(); reload();
+  };
+  const doDelete = async () => {
+    const paths = [del.original, ...(del.styles || []).map((s) => s.image)].filter(isStoragePath);
+    if (paths.length) await supabase.storage.from("portfolio").remove(paths).catch(() => {});
+    const { error } = await supabase.from("style_sets").delete().eq("id", del.id);
+    setDel(null);
+    if (error) return toast(errMsg(error), "err");
+    toast("已刪除"); load(); reload();
+  };
+
+  if (!rows) return <Spinner />;
+  if (missing) return <div className="alert alert-warn">資料庫尚未升級：請先在 Supabase → SQL Editor 執行 <b>supabase/03-upgrade.sql</b>，就能在這裡管理一拍多風格作品。目前網站顯示的是內建範例。</div>;
+  return (
+    <>
+      <p className="small muted mb-2">首頁第一區「拍一次，擁有多種藝術風格」。每組放一張<b>原片</b>和多張<b>風格版本</b>，客人可以點縮圖切換比較。這是最能說服客人加購的展示，建議放 3–6 組。</p>
+      <div className="flex mb-2"><button className="btn btn-sm" onClick={() => setEdit({ title: "", description: "", original: "", styles: [], published: true, sort: rows.length })}>＋ 新增一組</button></div>
+      {rows.length === 0 ? <div className="empty">還沒有一拍多風格作品</div> : (
+        <div className="list">
+          {rows.map((r) => (
+            <div key={r.id} className="row-card" style={{ alignItems: "center", opacity: r.published ? 1 : 0.55 }}>
+              <div className="flex" style={{ gap: 4 }}>
+                {setFrames(r).slice(0, 6).map((f, k) => <img key={k} src={imgUrl(f.image, "portfolio")} alt="" style={{ width: 48, height: 60, objectFit: "cover", borderRadius: 3, outline: f.original ? "2px solid var(--accent)" : "none" }} />)}
+              </div>
+              <div className="grow" style={{ minWidth: 200 }}><b>{r.title}</b><div className="small muted">{r.original ? "1 張原片 → " : ""}{(r.styles || []).length} 種風格{r.published ? "" : "・隱藏中"}｜排序 {r.sort}</div></div>
+              <div className="flex"><button className="btn btn-ghost btn-sm" onClick={() => setEdit({ ...r, styles: [...(r.styles || [])] })}>編輯</button><button className="btn btn-ghost btn-sm btn-del" onClick={() => setDel(r)}>刪除</button></div>
+            </div>
+          ))}
+        </div>
+      )}
+      {edit && (
+        <Modal title={edit.id ? "編輯一拍多風格" : "新增一拍多風格"} wide onClose={() => setEdit(null)} actions={<><button className="btn btn-ghost btn-sm" onClick={() => setEdit(null)}>取消</button><button className="btn btn-sm" disabled={!!busy} onClick={save}>儲存</button></>}>
+          <div className="form-grid">
+            <Field label="標題" full><input className="input" value={edit.title} maxLength={60} placeholder="例如：商務形象照，延伸出 7 種藝術風格" onChange={(e) => setEdit({ ...edit, title: e.target.value })} /></Field>
+            <Field label="說明（選填）" full><textarea className="textarea" style={{ minHeight: 60 }} value={edit.description} onChange={(e) => setEdit({ ...edit, description: e.target.value })} /></Field>
+            <ImagePicker label="原片（選填，會標示為「原片」）" value={edit.original} onChange={(v) => setEdit({ ...edit, original: v })} />
+          </div>
+          <h4 className="mt-3" style={{ fontSize: 15.5 }}>風格版本（{(edit.styles || []).length}）</h4>
+          <div className="list mt-1">
+            {(edit.styles || []).map((s, i) => (
+              <div key={s.image + i} className="flex flex-wrap">
+                <img src={imgUrl(s.image, "portfolio")} alt="" style={{ width: 52, height: 64, objectFit: "cover", borderRadius: 3 }} />
+                <input className="input grow" style={{ minWidth: 160 }} value={s.label} placeholder="風格名稱，例如：金箔華麗" onChange={(e) => updStyle(i, "label", e.target.value)} />
+                <button className="btn btn-ghost btn-sm" disabled={i === 0} onClick={() => moveStyle(i, -1)} aria-label="上移">↑</button>
+                <button className="btn btn-ghost btn-sm" disabled={i === edit.styles.length - 1} onClick={() => moveStyle(i, 1)} aria-label="下移">↓</button>
+                <button className="btn btn-ghost btn-sm btn-del" onClick={() => setEdit((x) => ({ ...x, styles: x.styles.filter((_, j) => j !== i) }))}>移除</button>
+              </div>
+            ))}
+          </div>
+          <button className="drop mt-2" style={{ width: "100%", padding: 18 }} disabled={!!busy} onClick={() => addRef.current.click()}>{busy || "＋ 上傳風格版本（可一次選多張，檔名會變成風格名稱）"}</button>
+          <input ref={addRef} type="file" accept="image/*" multiple hidden onChange={(e) => { const f = [...e.target.files]; e.target.value = ""; addStyles(f); }} />
+          <div className="form-grid mt-2">
+            <Field label="排序（數字小的在前）"><input className="input" type="number" value={edit.sort} onChange={(e) => setEdit({ ...edit, sort: e.target.value })} /></Field>
+            <Field label="選項"><label className="flex small"><input type="checkbox" checked={edit.published} onChange={(e) => setEdit({ ...edit, published: e.target.checked })} />在網站顯示</label></Field>
+          </div>
+        </Modal>
+      )}
+      {del && <Confirm title="刪除這組一拍多風格？" danger confirmText="確定刪除" message={`「${del.title}」與其中上傳的圖片將永久刪除。`} onConfirm={doDelete} onCancel={() => setDel(null)} />}
+    </>
   );
 }
 
@@ -402,7 +572,7 @@ function NotifyTab() {
 
 export default function Content() {
   const [tab, setTab] = useState("studio");
-  const C = { studio: StudioTab, hero: HeroTab, services: ServicesTab, portfolio: PortfolioTab, categories: CategoriesTab, booking: BookingTab, notify: NotifyTab }[tab];
+  const C = { studio: StudioTab, hero: HeroTab, oneshot: StyleSetsTab, services: ServicesTab, portfolio: PortfolioTab, categories: CategoriesTab, booking: BookingTab, notify: NotifyTab }[tab];
   return (
     <>
       <div className="admin-head"><div><div className="kicker">Website</div><h1>網站內容</h1><p className="small muted">在這裡修改的內容會立即更新到網站，不需要改程式</p></div></div>

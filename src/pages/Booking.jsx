@@ -44,7 +44,7 @@ export default function Booking() {
   const { services, booking: cfg, online } = useSite();
   const { customer, user } = useAuth();
   const [params] = useSearchParams();
-  const bookable = services.filter((s) => s.bookable);
+  const bookable = services.filter((s) => s.bookable && s.tier !== "hidden");
 
   const tomorrow = twDate(1);
   const maxDate = twDate(Number(cfg.max_days_ahead || 90));

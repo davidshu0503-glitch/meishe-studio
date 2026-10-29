@@ -1,4 +1,5 @@
-// 資料庫尚未連線時的預設內容（與 supabase/01-setup.sql 的預設資料一致）
+// 資料庫尚未連線時的預設內容（與 supabase/01-setup.sql、03-upgrade.sql 的預設資料一致）
+import { WORK_CATEGORIES, WORK_PORTFOLIO, WORK_STYLE_SETS } from "./works";
 const U = (id, w = 1200) => `https://images.unsplash.com/${id}?w=${w}&q=80`;
 
 export const DEFAULT_STUDIO = {
@@ -36,44 +37,22 @@ export const DEFAULT_BOOKING = {
   notice: "預約送出後，工作室將於 1 個工作天內與您確認。如需改期請於拍攝前 2 天來電。",
 };
 
-export const DEFAULT_CATEGORIES = [
-  { slug: "portrait", name: "形象攝影", sort: 1 },
-  { slug: "wedding", name: "婚紗攝影", sort: 2 },
-  { slug: "commercial", name: "商業攝影", sort: 3 },
-  { slug: "cinematic", name: "影畫創作", sort: 4 },
-  { slug: "mixed_media", name: "拍畫品", sort: 5 },
-  { slug: "ai_art", name: "AI 影像創畫", sort: 6 },
-];
+export const DEFAULT_CATEGORIES = WORK_CATEGORIES;
 
 export const DEFAULT_SERVICES = [
-  { id: "id_photo", name: "證件照", subtitle: "ID PHOTO", description: "專業燈光與修圖，符合各式證件規格。", price: 300, price_note: "", duration_label: "約 30 分鐘", features: ["現場挑選", "基礎修圖", "電子檔交付"], featured: false, bookable: true, sort: 1 },
-  { id: "portrait", name: "個人寫真", subtitle: "PORTRAIT", description: "一對一引導拍攝，找到最自在、最好看的自己。", price: 6800, price_note: "／2 小時", duration_label: "約 2 小時", features: ["1 位攝影師", "1 個場景", "精修 15 張", "線上選片交件"], featured: true, bookable: true, sort: 2 },
-  { id: "family", name: "全家福", subtitle: "FAMILY", description: "為家人留下溫暖自然的合影。", price: 4500, price_note: "", duration_label: "約 1.5 小時", features: ["最多 8 人", "精修 10 張", "線上選片交件"], featured: false, bookable: true, sort: 3 },
-  { id: "business", name: "商業形象照", subtitle: "BUSINESS", description: "個人品牌、企業主管、履歷形象照。", price: 3500, price_note: "", duration_label: "約 1 小時", features: ["2 套服裝", "精修 5 張", "商用授權"], featured: false, bookable: true, sort: 4 },
-  { id: "ai_portrait", name: "AI 藝術肖像", subtitle: "AI PORTRAIT", description: "以您的照片為基礎，AI 生成多種藝術風格肖像。", price: 1200, price_note: "", duration_label: "約 15 分鐘", features: ["3 種風格", "高解析檔案", "線上交件"], featured: true, bookable: true, sort: 5 },
-  { id: "ai_creation", name: "影像創畫", subtitle: "PHOTO × AI ART", description: "攝影結合 AI 數位藝術創作，打造獨一無二的影像作品。", price: 2800, price_note: "起", duration_label: "約 1 小時", features: ["實拍 + AI 創作", "客製風格", "高解析檔案"], featured: true, bookable: true, sort: 6 },
-  { id: "wedding_pkg", name: "婚紗方案", subtitle: "WEDDING", description: "全天婚紗拍攝，多場景外拍。", price: 28000, price_note: "／全天", duration_label: "全天", features: ["2 位攝影師", "多場景外拍", "精修 60 張", "婚紗相本一本", "線上選片交件"], featured: true, bookable: false, sort: 7 },
-  { id: "commercial_pkg", name: "商業方案", subtitle: "COMMERCIAL", description: "商品、空間、品牌形象拍攝。", price: 12000, price_note: "／半天", duration_label: "半天", features: ["1 位攝影師", "棚拍或到府", "精修 20 張", "商用授權"], featured: false, bookable: false, sort: 8 },
+  { id: "id_photo", tier: "entry", name: "證件照", subtitle: "ID PHOTO", description: "專業燈光與修圖，符合各式證件規格。", price: 300, price_note: "", duration_label: "約 30 分鐘", features: ["現場挑選", "基礎修圖", "電子檔交付"], featured: false, bookable: true, sort: 1 },
+  { id: "portrait", tier: "entry", name: "個人寫真", subtitle: "PORTRAIT", description: "一對一引導拍攝，找到最自在、最好看的自己。", price: 6800, price_note: "／2 小時", duration_label: "約 2 小時", features: ["1 位攝影師", "1 個場景", "精修 15 張", "線上選片交件"], featured: true, bookable: true, sort: 2 },
+  { id: "family", tier: "entry", name: "全家福", subtitle: "FAMILY", description: "為家人留下溫暖自然的合影。", price: 4500, price_note: "", duration_label: "約 1.5 小時", features: ["最多 8 人", "精修 10 張", "線上選片交件"], featured: false, bookable: true, sort: 3 },
+  { id: "business", tier: "entry", name: "商業形象照", subtitle: "BUSINESS", description: "個人品牌、企業主管、履歷形象照。", price: 3500, price_note: "", duration_label: "約 1 小時", features: ["2 套服裝", "精修 5 張", "商用授權"], featured: false, bookable: true, sort: 4 },
+  { id: "ai_portrait", tier: "addon", name: "一拍多風格加購", subtitle: "STYLE ADD-ON", description: "用同一次拍攝的照片，加做 3 種藝術風格版本（例如水彩、奇幻光效、普普）。", price: 1200, price_note: "", duration_label: "約 15 分鐘", features: ["3 種風格", "高解析檔案", "線上交件"], featured: true, bookable: true, sort: 5 },
+  { id: "ai_creation", tier: "addon", name: "影像創畫", subtitle: "PHOTO × AI ART", description: "攝影結合 AI 數位藝術創作，打造獨一無二的影像作品。", price: 2800, price_note: "起", duration_label: "約 1 小時", features: ["實拍 + AI 創作", "客製風格", "高解析檔案"], featured: true, bookable: true, sort: 6 },
+  { id: "art_print", tier: "main", name: "典藏藝術掛畫", subtitle: "SIGNATURE ART PRINT", description: "把最喜歡的一張做成金箔、厚塗油畫或雕塑材質風格，輸出成可以掛在客廳的大幅作品。", price: 0, price_note: "依尺寸報價", duration_label: "", features: ["尺寸 8×12 至 24×30 吋", "無框畫或實體畫框", "可搭配任一拍攝方案"], featured: true, bookable: false, sort: 0 },
+  { id: "art_collection", tier: "main", name: "典藏故事套組", subtitle: "STORY COLLECTION", description: "全家福、孕期、壽宴的完整紀錄：拍攝原片、多種風格轉繪，加上大幅掛畫與小相本。", price: 0, price_note: "", duration_label: "", features: ["拍攝＋精修原片", "多種藝術風格轉繪", "大幅掛畫＋小相本"], featured: true, bookable: false, sort: 0 },
+  { id: "wedding_pkg", tier: "entry", name: "婚紗方案", subtitle: "WEDDING", description: "全天婚紗拍攝，多場景外拍。", price: 28000, price_note: "／全天", duration_label: "全天", features: ["2 位攝影師", "多場景外拍", "精修 60 張", "婚紗相本一本", "線上選片交件"], featured: true, bookable: false, sort: 7 },
+  { id: "commercial_pkg", tier: "entry", name: "商業方案", subtitle: "COMMERCIAL", description: "商品、空間、品牌形象拍攝。", price: 12000, price_note: "／半天", duration_label: "半天", features: ["1 位攝影師", "棚拍或到府", "精修 20 張", "商用授權"], featured: false, bookable: false, sort: 8 },
 ];
 
-const POOLS = {
-  portrait: ["photo-1544005313-94ddf0286df2", "photo-1500048993953-d23a436266cf", "photo-1522673607200-164d1b6ce486", "photo-1531123897727-8f129e1688ce", "photo-1519699047748-de8e457a634e", "photo-1517841905240-472988babdf9"],
-  wedding: ["photo-1519741497674-611481863552", "photo-1606800052052-a08af7148866", "photo-1583939003579-730e3918a45a", "photo-1520854221256-17451cc331bf", "photo-1533105079780-92b9be482077", "photo-1524504388940-b1c1722653e1"],
-  commercial: ["photo-1523293182086-7651a899d37f", "photo-1441984904996-e0b6ba687e04", "photo-1495366691023-cbcabbb87e8b", "photo-1580489944761-15a19d654956", "photo-1487412720507-e7ab37603c6f", "photo-1470075801209-17f9ec0cada6"],
-  cinematic: ["photo-1478720568477-152d9b164e26", "photo-1508614999368-9260051292e5", "photo-1465146344425-f00d5f5c8f07", "photo-1516035069371-29a1b244cc32", "photo-1524504388940-b1c1722653e1", "photo-1495366691023-cbcabbb87e8b"],
-  mixed_media: ["photo-1541961017774-22349e4a1262", "photo-1579783902614-a3fb3927b6a5", "photo-1547891654-e66ed7ebb968", "photo-1460661419201-fd4cecdf8a8b", "photo-1536924940846-227afb31e2a5", "photo-1513364776144-60967b0f800f"],
-  ai_art: ["photo-1547891654-e66ed7ebb968", "photo-1579783902614-a3fb3927b6a5", "photo-1541961017774-22349e4a1262", "photo-1536924940846-227afb31e2a5", "photo-1460661419201-fd4cecdf8a8b", "photo-1513364776144-60967b0f800f"],
-};
+export const DEFAULT_PORTFOLIO = WORK_PORTFOLIO;
 
-export const DEFAULT_PORTFOLIO = DEFAULT_CATEGORIES.flatMap((c) => {
-  const pool = POOLS[c.slug];
-  return Array.from({ length: 12 }).map((_, i) => ({
-    id: `${c.slug}-${i}`,
-    category: c.slug,
-    title: `${c.name}・作品 ${String(i + 1).padStart(2, "0")}`,
-    description: "",
-    images: [0, 1, 2].map((k) => U(pool[(i + k) % pool.length])),
-    featured: i < 2,
-    sort: i,
-  }));
-});
+/** 一拍多風格：同一張原片 → 多種藝術風格 */
+export const DEFAULT_STYLE_SETS = WORK_STYLE_SETS;

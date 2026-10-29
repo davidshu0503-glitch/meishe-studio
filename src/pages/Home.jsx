@@ -2,11 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useSite } from "../lib/site";
 import { imgUrl } from "../lib/supabase";
-import { money } from "../lib/utils";
+import { priceNote, priceText, TIERS } from "../lib/utils";
 import { Reveal, useTitle } from "../components/ui";
-import Protect from "../components/Protect";
-import PortfolioCard from "../components/PortfolioCard";
-import Lightbox from "../components/Lightbox";
+import Protect, { Watermark } from "../components/Protect";
+import StyleShowcase from "../components/StyleShowcase";
 
 const HERO_MS = 6000;
 
@@ -45,7 +44,8 @@ function Hero() {
         )}
         <div className="hero-cta hero-anim" style={{ animationDelay: ".45s" }}>
           <Link to="/booking" className="btn btn-light">線上預約</Link>
-          <Link to="/portfolio" className="btn btn-light" style={{ borderColor: "transparent" }}>瀏覽作品 →</Link>
+          <a href="#oneshot" className="btn btn-light" style={{ borderColor: "transparent" }}
+            onClick={(e) => { e.preventDefault(); document.getElementById("oneshot")?.scrollIntoView({ behavior: "smooth" }); }}>看一拍多風格 →</a>
         </div>
       </div>
       {s.cat && (
@@ -62,90 +62,173 @@ function Hero() {
   );
 }
 
+/** 分類卡片：封面＋名稱＋說明＋作品數 */
+function CategoryCard({ c, cover, count, watermark, big }) {
+  return (
+    <Link to={`/portfolio?cat=${c.slug}`} className={`cat-card ${big ? "big" : ""}`}>
+      <div className="cat-img protect-target">
+        {cover ? <img src={imgUrl(cover, "portfolio")} alt={c.name} loading="lazy" /> : <div className="cat-ph" />}
+        {watermark && <Watermark text={watermark} />}
+      </div>
+      <div className="cat-body">
+        <div className="cat-en">{c.name_en || ""}</div>
+        <h3>{c.name}</h3>
+        {c.description && <p>{c.description}</p>}
+        <span className="cat-more">{count} 件作品 →</span>
+      </div>
+    </Link>
+  );
+}
+
+function TierHead({ tier, index }) {
+  const t = TIERS[tier];
+  return (
+    <Reveal className="tier-head">
+      <div className="tier-no">{String(index).padStart(2, "0")}</div>
+      <div>
+        <div className="eyebrow">{t.en}</div>
+        <h2 className="title-lg">{t.label}</h2>
+        <p className="lead">{t.desc}</p>
+      </div>
+    </Reveal>
+  );
+}
+
 export default function Home() {
   useTitle("");
-  const { studio, services, portfolio, categories } = useSite();
-  const [lb, setLb] = useState(null);
-  const featured = useMemo(() => {
-    const f = portfolio.filter((p) => p.featured);
-    return (f.length >= 6 ? f : [...f, ...portfolio.filter((p) => !p.featured)]).slice(0, 9);
-  }, [portfolio]);
-  const topServices = useMemo(() => {
-    const f = services.filter((s) => s.featured);
-    return (f.length >= 3 ? f : services).slice(0, 3);
-  }, [services]);
-  const catName = (slug) => categories.find((c) => c.slug === slug)?.name;
-  const introImg = featured[1]?.images?.[0] || featured[0]?.images?.[0];
+  const { studio, services, portfolio, categories, styleSets } = useSite();
+
+  const byTier = useMemo(() => {
+    const m = { main: [], addon: [], entry: [] };
+    categories.forEach((c) => m[c.tier]?.push(c));
+    return m;
+  }, [categories]);
+  const coverOf = (slug) => {
+    const list = portfolio.filter((p) => p.category === slug);
+    return (list.find((p) => p.featured) || list[0])?.images?.[0];
+  };
+  const countOf = (slug) => portfolio.filter((p) => p.category === slug).length;
+  const svc = (tier) => services.filter((s) => s.tier === tier);
+  const entryServices = svc("entry").filter((s) => s.bookable).slice(0, 4);
+  const hasSets = styleSets.some((s) => (s.styles || []).length > 0);
+  let n = 0;
 
   return (
     <>
       <Hero />
 
-      <section className="section">
-        <div className="wrap intro-grid">
-          <Reveal className="intro-img">
-            {introImg && <img src={imgUrl(introImg, "portfolio")} alt={`${studio.name} 作品`} loading="lazy" />}
-            <span className="tag">Photo × AI</span>
-          </Reveal>
-          <Reveal delay={150}>
-            <div className="eyebrow">About GIME Studio</div>
-            <h2 className="title-lg" style={{ margin: "10px 0 24px" }}>{studio.slogan}</h2>
-            <p className="lead">{studio.intro}</p>
-            <div className="pillars">
-              <div className="pillar"><b>專業攝影</b><span>燈光、引導、修圖一次到位</span></div>
-              <div className="pillar"><b>AI 影像創畫</b><span>把真實照片延展成藝術作品</span></div>
-              <div className="pillar"><b>線上全流程</b><span>預約、選片、交件都在線上</span></div>
+      {/* 01 一拍多風格 */}
+      {hasSets && (
+        <section className="section oneshot-sec" id="oneshot">
+          <div className="wrap">
+            <Reveal className="tier-head on-dark">
+              <div className="tier-no">{String(++n).padStart(2, "0")}</div>
+              <div>
+                <div className="eyebrow">One Shoot · Many Styles</div>
+                <h2 className="title-lg">拍一次，擁有多種藝術風格</h2>
+                <p className="lead">同一次拍攝的照片，可以再轉成金箔、油畫、雕塑、水彩、普普等不同風格。點右邊的縮圖，看同一張原片的各種版本。</p>
+              </div>
+            </Reveal>
+            <StyleShowcase sets={styleSets} watermark={studio.watermark} />
+            <div className="center mt-4 flex" style={{ justifyContent: "center", flexWrap: "wrap" }}>
+              <Link to="/booking" className="btn btn-accent">預約拍攝</Link>
+              <Link to="/portfolio?tier=oneshot" className="btn btn-light">看全部一拍多風格作品</Link>
             </div>
-            <div className="mt-3"><Link to="/about" className="btn btn-ghost">認識我們</Link></div>
-          </Reveal>
-        </div>
-      </section>
+          </div>
+        </section>
+      )}
 
-      <section className="section bg-2">
+      {/* 02 主力：典藏藝術肖像 */}
+      {byTier.main.length > 0 && (
+        <section className="section">
+          <div className="wrap">
+            <TierHead tier="main" index={++n} />
+            <Protect>
+              <div className="cat-grid main">
+                {byTier.main.map((c) => <CategoryCard key={c.slug} c={c} cover={coverOf(c.slug)} count={countOf(c.slug)} watermark={studio.watermark} big />)}
+              </div>
+            </Protect>
+            {svc("main").length > 0 && (
+              <div className="tier-offers">
+                {svc("main").map((s) => (
+                  <div key={s.id} className="offer">
+                    <div><b>{s.name}</b><span className="small muted">{s.description}</span></div>
+                    <div className="offer-price">{priceText(s)}<small>{priceNote(s)}</small></div>
+                    <Link to={s.bookable ? `/booking?service=${s.id}` : "/services#main"} className="btn btn-sm">{s.bookable ? "預約" : "了解方案"}</Link>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* 03 加值：風格加購 */}
+      {byTier.addon.length > 0 && (
+        <section className="section bg-2">
+          <div className="wrap">
+            <TierHead tier="addon" index={++n} />
+            <Protect>
+              <div className="cat-grid addon">
+                {byTier.addon.map((c) => <CategoryCard key={c.slug} c={c} cover={coverOf(c.slug)} count={countOf(c.slug)} watermark={studio.watermark} />)}
+              </div>
+            </Protect>
+            {svc("addon").length > 0 && (
+              <div className="tier-offers">
+                {svc("addon").map((s) => (
+                  <div key={s.id} className="offer">
+                    <div><b>{s.name}</b><span className="small muted">{s.description}</span></div>
+                    <div className="offer-price">{priceText(s)}<small>{priceNote(s)}</small></div>
+                    <Link to={s.bookable ? `/booking?service=${s.id}` : "/services#addon"} className="btn btn-ghost btn-sm">{s.bookable ? "加購預約" : "了解方案"}</Link>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* 04 引流：入門拍攝 */}
+      <section className="section">
         <div className="wrap">
-          <Reveal className="sec-head">
-            <div className="eyebrow">Selected Works</div>
-            <h2 className="title-lg">精選作品</h2>
-            <div className="rule" />
-          </Reveal>
-          <Protect>
-            <div className="grid-portfolio">
-              {featured.map((p, k) => (
-                <PortfolioCard key={p.id} item={p} index={k} catName={catName(p.category)} watermark={studio.watermark}
-                  onOpen={(img) => setLb({ item: p, index: img })} />
+          <TierHead tier="entry" index={++n} />
+          {entryServices.length > 0 && (
+            <div className="svc-grid">
+              {entryServices.map((s, k) => (
+                <Reveal key={s.id} delay={k * 100} className="svc">
+                  <div className="en">{s.subtitle}</div>
+                  <h3>{s.name}</h3>
+                  <div className="price">{priceText(s)}<small>{priceNote(s)}</small></div>
+                  <p className="muted small">{s.description}</p>
+                  <div className="spacer" />
+                  <Link to={`/booking?service=${s.id}`} className="btn btn-sm">預約此服務</Link>
+                </Reveal>
               ))}
             </div>
-            {lb && (
-              <Lightbox images={lb.item.images.map((x) => imgUrl(x, "portfolio"))} index={lb.index} caption={lb.item.title}
-                watermark={studio.watermark} onClose={() => setLb(null)} />
-            )}
-          </Protect>
-          <div className="center mt-4"><Link to="/portfolio" className="btn btn-ghost">查看全部作品</Link></div>
+          )}
+          {byTier.entry.length > 0 && (
+            <div className="entry-cats">
+              <span className="small muted">拍攝作品：</span>
+              {byTier.entry.map((c) => <Link key={c.slug} to={`/portfolio?cat=${c.slug}`} className="chip">{c.name}（{countOf(c.slug)}）</Link>)}
+            </div>
+          )}
         </div>
       </section>
 
-      <section className="section">
+      {/* 怎麼買：從入門到典藏 */}
+      <section className="section-tight ladder-sec">
         <div className="wrap">
-          <Reveal className="sec-head">
-            <div className="eyebrow">Services</div>
-            <h2 className="title-lg">熱門服務</h2>
-            <div className="rule" />
-          </Reveal>
-          <div className="svc-grid">
-            {topServices.map((s, k) => (
-              <Reveal key={s.id} delay={k * 120} className={`svc ${s.featured ? "" : ""}`}>
-                <div className="en">{s.subtitle}</div>
-                <h3>{s.name}</h3>
-                <div className="price">{money(s.price)}<small>{s.price_note}</small></div>
-                <p className="muted small">{s.description}</p>
-                <div className="spacer" />
-                <Link to={s.bookable ? `/booking?service=${s.id}` : "/about#contact"} className="btn btn-ghost btn-sm">
-                  {s.bookable ? "預約此服務" : "洽詢方案"}
-                </Link>
-              </Reveal>
+          <Reveal className="sec-head"><div className="eyebrow">From a photo to an heirloom</div><h2 className="title-lg">從一次拍攝，到一幅傳家作品</h2></Reveal>
+          <ol className="ladder">
+            {[
+              ["入門拍攝", "形象照、證件照、孕婦寫真、全家福", "/services#entry"],
+              ["風格加購", "同一組照片加做 1–3 種藝術風格", "/services#addon"],
+              ["典藏掛畫", "最喜歡的一張輸出成大幅掛畫", "/services#main"],
+              ["典藏套組", "原片＋多風格＋掛畫＋相本，一次完成", "/services#main"],
+            ].map(([t, d, to]) => (
+              <li key={t}><Link to={to}><b>{t}</b><span>{d}</span></Link></li>
             ))}
-          </div>
-          <div className="center mt-4"><Link to="/services" className="btn">查看所有服務與價格</Link></div>
+          </ol>
         </div>
       </section>
 
@@ -160,16 +243,17 @@ export default function Home() {
             {[
               ["01", "線上預約", "選擇服務與時段，立即取得預約編號，Email / LINE 同步通知。"],
               ["02", "棚內拍攝", "攝影師一對一引導，輕鬆自在地完成拍攝。"],
-              ["03", "線上選片", "照片上傳後通知您，手機就能挑選喜歡的照片。"],
-              ["04", "精修交件", "精修完成自動通知，線上高解析下載。"],
-            ].map(([n, t, d], k) => (
-              <Reveal key={n} delay={k * 120} className="process-step">
-                <div className="num">{n}</div>
+              ["03", "選片與選風格", "手機就能挑照片，再決定要加做哪些藝術風格。"],
+              ["04", "精修交件", "精修與轉繪完成自動通知，線上高解析下載或輸出掛畫。"],
+            ].map(([num, t, d], k) => (
+              <Reveal key={num} delay={k * 120} className="process-step">
+                <div className="num">{num}</div>
                 <h4>{t}</h4>
                 <p>{d}</p>
               </Reveal>
             ))}
           </div>
+          <div className="center mt-4"><Link to="/about" className="btn btn-ghost">認識 {studio.name}</Link></div>
         </div>
       </section>
     </>

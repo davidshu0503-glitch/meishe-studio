@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { errMsg, supabase } from "../../lib/supabase";
 import { EVENT_LABELS, fmtDateTime, NOTIFY_STATUS } from "../../lib/utils";
-import { Modal, Spinner, useToast } from "../../components/ui";
+import { BulkBar, CheckAll, CheckCell, Confirm, Modal, Spinner, useSelection, useToast } from "../../components/ui";
+import { deleteNotifications } from "../../lib/records";
 
 const TONE = { sent: "ok", queued: "warn", sending: "info", failed: "danger", skipped: "muted" };
 
@@ -30,6 +31,14 @@ export default function Notifications() {
     const p = n.payload || {};
     return [p.name, p.phone, n.order_id, n.booking_id, n.recipient].some((v) => String(v || "").toLowerCase().includes(q.toLowerCase()));
   }), [rows, view, event, q]);
+
+  const selection = useSelection(list);
+  const [delIds, setDelIds] = useState(null);
+  const doDelete = async () => {
+    try { const n = await deleteNotifications(delIds); toast(`已刪除 ${n} 則通知紀錄`); }
+    catch (e) { toast(errMsg(e), "err"); }
+    setDelIds(null); selection.clear(); load();
+  };
 
   const mark = async (ids, processed = true) => {
     const { error } = await supabase.from("notifications").update({ processed }).in("id", ids);
@@ -68,13 +77,18 @@ export default function Notifications() {
         <input className="input" placeholder="客戶／電話／訂單編號" value={q} onChange={(e) => setQ(e.target.value)} />
         {view === "todo" && list.length > 0 && <button className="btn btn-ghost btn-sm" onClick={() => mark(list.map((n) => n.id))}>全部標記已處理</button>}
       </div>
+      <BulkBar selection={selection} label="則">
+        <button className="btn btn-ghost btn-sm" onClick={() => { mark(selection.ids); selection.clear(); }}>標記已處理</button>
+        <button className="btn btn-sm btn-danger" onClick={() => setDelIds(selection.ids)}>刪除所選</button>
+      </BulkBar>
       {!rows ? <Spinner /> : list.length === 0 ? <div className="empty">{view === "todo" ? "沒有待處理的通知 🎉" : "沒有通知紀錄"}</div> : (
         <div className="table-wrap">
           <table className="tbl">
-            <thead><tr><th>時間</th><th>事件</th><th>對象</th><th>管道</th><th>客戶</th><th>狀態</th><th></th></tr></thead>
+            <thead><tr><CheckAll selection={selection} /><th>時間</th><th>事件</th><th>對象</th><th>管道</th><th>客戶</th><th>狀態</th><th></th></tr></thead>
             <tbody>
               {list.map((n) => (
-                <tr key={n.id} className="click" onClick={() => setDetail(n)} style={n.processed ? { opacity: 0.6 } : undefined}>
+                <tr key={n.id} className={`click ${selection.has(n.id) ? "sel" : ""}`} onClick={() => setDetail(n)} style={n.processed ? { opacity: 0.6 } : undefined}>
+                  <CheckCell selection={selection} id={n.id} />
                   <td className="small">{fmtDateTime(n.created_at)}</td>
                   <td>{EVENT_LABELS[n.event] || n.event}</td>
                   <td>{n.audience === "studio" ? "工作室" : "客戶"}</td>
@@ -91,6 +105,7 @@ export default function Notifications() {
           </table>
         </div>
       )}
+      {delIds && <Confirm title={`刪除 ${delIds.length} 則通知紀錄？`} danger confirmText="確定刪除" message="只會刪除後台的通知紀錄，已寄出的 Email／LINE 不會收回。排隊中的通知刪除後就不會寄出。" onConfirm={doDelete} onCancel={() => setDelIds(null)} />}
       {detail && (
         <Modal title={EVENT_LABELS[detail.event] || detail.event} onClose={() => setDetail(null)} actions={<>
           {detail.order_id && <Link className="btn btn-ghost btn-sm" to={`/admin/orders/${detail.order_id}`}>查看訂單</Link>}

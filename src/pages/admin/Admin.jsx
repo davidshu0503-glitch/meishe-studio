@@ -10,6 +10,7 @@ import Customers from "./Customers";
 import Notifications from "./Notifications";
 import Content from "./Content";
 import AuditLogs from "./AuditLogs";
+import Cleanup from "./Cleanup";
 
 function AdminLogin() {
   const { user, signOut } = useAuth();
@@ -78,6 +79,7 @@ export default function Admin() {
     ["/admin/notifications", "通知中心", false, pending],
     ["/admin/content", "網站內容"],
     ["/admin/audit", "變更紀錄"],
+    ["/admin/cleanup", "資料整理"],
   ];
 
   return (
@@ -109,6 +111,7 @@ export default function Admin() {
           <Route path="notifications" element={<Notifications />} />
           <Route path="content" element={<Content />} />
           <Route path="audit" element={<AuditLogs />} />
+          <Route path="cleanup" element={<Cleanup />} />
         </Routes>
       </main>
     </div>

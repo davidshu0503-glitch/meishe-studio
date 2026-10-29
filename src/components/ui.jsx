@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { STATUS_TONE } from "../lib/utils";
 
 /* ---------- Toast ---------- */
@@ -38,7 +38,7 @@ export function Modal({ title, children, onClose, actions, wide }) {
   );
 }
 
-export function Confirm({ title, message, confirmText = "確定", danger, onConfirm, onCancel }) {
+export function Confirm({ title, message, confirmText = "確定", danger, onConfirm, onCancel, children }) {
   const [busy, setBusy] = useState(false);
   return (
     <Modal title={title} onClose={onCancel} actions={<>
@@ -49,6 +49,7 @@ export function Confirm({ title, message, confirmText = "確定", danger, onConf
       </button>
     </>}>
       <p className="lead" style={{ fontSize: 16.5 }}>{message}</p>
+      {children}
     </Modal>
   );
 }
@@ -114,4 +115,63 @@ export function PageHero({ eyebrow, title, sub }) {
       </div>
     </header>
   );
+}
+
+/* ---------- 後台：多選與批次操作 ---------- */
+/** 表格多選：rows 變動時自動移除已不存在的選取 */
+export function useSelection(rows, key = "id") {
+  const [sel, setSel] = useState(() => new Set());
+  const ids = useMemo(() => new Set((rows || []).map((r) => r[key])), [rows, key]);
+  useEffect(() => { setSel((s) => { const n = new Set([...s].filter((x) => ids.has(x))); return n.size === s.size ? s : n; }); }, [ids]);
+  const all = (rows || []).length > 0 && (rows || []).every((r) => sel.has(r[key]));
+  return {
+    sel, size: sel.size, ids: [...sel], all,
+    has: (id) => sel.has(id),
+    toggle: (id) => setSel((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; }),
+    toggleAll: () => setSel(all ? new Set() : new Set((rows || []).map((r) => r[key]))),
+    clear: () => setSel(new Set()),
+  };
+}
+
+/** 勾選後出現的批次操作列 */
+export function BulkBar({ selection, children, label = "筆" }) {
+  if (!selection.size) return null;
+  return (
+    <div className="bulkbar" role="region" aria-label="批次操作">
+      <b>已選 {selection.size} {label}</b>
+      {children}
+      <span className="grow" />
+      <button className="btn btn-ghost btn-sm" onClick={selection.clear}>取消選取</button>
+    </div>
+  );
+}
+
+/** 表頭勾選框與每列勾選框 */
+export function CheckAll({ selection }) {
+  return <th className="ck" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selection.all} onChange={selection.toggleAll} aria-label="全選" /></th>;
+}
+export function CheckCell({ selection, id }) {
+  return <td className="ck" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selection.has(id)} onChange={() => selection.toggle(id)} aria-label="選取" /></td>;
+}
+
+/** 可排序表頭 */
+export function useSort(initial, initialDir = "asc") {
+  const [sort, setSort] = useState({ key: initial, dir: initialDir });
+  const toggle = (key) => setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
+  const apply = (list, getters = {}) => {
+    const get = getters[sort.key] || ((r) => r[sort.key]);
+    const d = sort.dir === "asc" ? 1 : -1;
+    return [...list].sort((a, b) => {
+      const x = get(a), y = get(b);
+      if (x === y) return 0;
+      if (x === null || x === undefined || x === "") return 1;
+      if (y === null || y === undefined || y === "") return -1;
+      return (typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y), "zh-Hant")) * d;
+    });
+  };
+  // 用法：{th("date", "日期")}
+  const th = (k, label, className) => (
+    <th key={k} className={className}><button className={`sort-btn ${sort.key === k ? sort.dir : ""}`} onClick={() => toggle(k)}>{label}</button></th>
+  );
+  return { sort, apply, th };
 }

@@ -22,7 +22,7 @@ export default function DemoBanner() {
         <b style={{ letterSpacing: ".16em" }}>示範模式・可自由測試</b>
         <button onClick={() => setOpen(false)} style={{ background: "none", border: 0, color: "#A8A192", fontSize: 18, lineHeight: 1 }} aria-label="收合">×</button>
       </div>
-      <p style={{ color: "#CFC8B8", margin: "0 0 10px" }}>資料只存在這個頁面，重新整理會回到初始狀態。圖片為示範色塊，可在後台上傳自己的照片試試。</p>
+      <p style={{ color: "#CFC8B8", margin: "0 0 10px" }}>資料只存在這個頁面，重新整理會回到初始狀態。作品圖為工作室實際作品；後台可試刪除、整理、上傳。</p>
       <div style={{ display: "grid", gap: 6 }}>
         <div style={row}><span style={{ color: "#A8A192" }}>後台</span><span><span style={code}>{info.admin}</span><br /><span style={code}>{info.password}</span></span></div>
         <div style={row}><span style={{ color: "#A8A192" }}>會員</span><span><span style={code}>{info.member}</span>（同密碼）</span></div>

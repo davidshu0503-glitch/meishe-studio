@@ -3,7 +3,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import { errMsg, kickNotifications, supabase } from "../../lib/supabase";
 import { useSite } from "../../lib/site";
 import { BOOKING_STATUSES, csvDownload, fmtDate, normPhone, twDate } from "../../lib/utils";
-import { Confirm, Field, Modal, Spinner, StatusBadge, useToast } from "../../components/ui";
+import { BulkBar, CheckAll, CheckCell, Confirm, Field, Modal, Spinner, StatusBadge, useSelection, useSort, useToast } from "../../components/ui";
+import { deleteBookings } from "../../lib/records";
 
 export function NewBookingModal({ onClose, onDone }) {
   const { services, booking: cfg } = useSite();
@@ -74,6 +75,8 @@ export default function Bookings() {
   const [to, setTo] = useState("");
   const [cancel, setCancel] = useState(null);
   const [resched, setResched] = useState(null);
+  const [delIds, setDelIds] = useState(null);
+  const [withOrders, setWithOrders] = useState(false);
 
   const load = async () => {
     let query = supabase.from("bookings").select("*").order("date").order("time").limit(2000);
@@ -84,12 +87,22 @@ export default function Bookings() {
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [from, to]);
 
-  const list = useMemo(() => (rows || []).filter((b) => {
+  const { apply, th } = useSort("date");
+  const list = useMemo(() => apply((rows || []).filter((b) => {
     if (status !== "全部" && b.status !== status) return false;
     if (!q) return true;
     const k = q.toLowerCase();
     return [b.name, b.id, b.service_name, b.email, b.line_id].some((v) => (v || "").toLowerCase().includes(k)) || (normPhone(q) && normPhone(b.phone).includes(normPhone(q)));
-  }), [rows, q, status]);
+  }), { date: (b) => `${b.date} ${b.time}` }), [rows, q, status, apply]);
+  const selection = useSelection(list);
+
+  const doDelete = async () => {
+    try {
+      const n = await deleteBookings(delIds, { withOrders });
+      toast(`已刪除 ${n} 筆預約${withOrders ? "（含訂單與相簿）" : ""}`);
+    } catch (e) { toast(errMsg(e), "err"); }
+    setDelIds(null); selection.clear(); load();
+  };
 
   const doCancel = async () => {
     const { error } = await supabase.from("bookings").update({ status: "已取消" }).eq("id", cancel.id);
@@ -117,20 +130,25 @@ export default function Bookings() {
         <span className="small muted">至</span>
         <input className="input" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
       </div>
+      <BulkBar selection={selection}>
+        <button className="btn btn-sm btn-danger" onClick={() => { setWithOrders(false); setDelIds(selection.ids); }}>刪除所選</button>
+      </BulkBar>
       {!rows ? <Spinner /> : list.length === 0 ? <div className="empty">沒有符合的預約</div> : (
         <div className="table-wrap">
           <table className="tbl">
-            <thead><tr><th>日期</th><th>時間</th><th>客戶</th><th>電話</th><th>服務</th><th>狀態</th><th className="hide-sm">編號</th><th></th></tr></thead>
+            <thead><tr><CheckAll selection={selection} />{th("date", "日期")}<th>時間</th>{th("name", "客戶")}<th>電話</th>{th("service_name", "服務")}{th("status", "狀態")}<th className="hide-sm">編號</th><th></th></tr></thead>
             <tbody>
               {list.map((b) => (
-                <tr key={b.id}>
+                <tr key={b.id} className={selection.has(b.id) ? "sel" : ""}>
+                  <CheckCell selection={selection} id={b.id} />
                   <td>{fmtDate(b.date)}</td><td>{b.time}</td>
                   <td><b>{b.name}</b>{b.note && <div className="small muted" style={{ maxWidth: 220, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={b.note}>{b.note}</div>}</td>
                   <td>{b.phone}</td><td>{b.service_name}</td><td><StatusBadge status={b.status} /></td>
                   <td className="hide-sm small muted">{b.id}</td>
                   <td style={{ whiteSpace: "nowrap" }}>
                     <Link className="btn btn-ghost btn-sm" to={`/admin/orders?booking=${b.id}`}>訂單</Link>{" "}
-                    {b.status === "已預約" && <><button className="btn btn-ghost btn-sm" onClick={() => setResched(b)}>改期</button>{" "}<button className="btn btn-ghost btn-sm" onClick={() => setCancel(b)}>取消</button></>}
+                    {b.status === "已預約" && <><button className="btn btn-ghost btn-sm" onClick={() => setResched(b)}>改期</button>{" "}<button className="btn btn-ghost btn-sm" onClick={() => setCancel(b)}>取消</button>{" "}</>}
+                    <button className="btn btn-ghost btn-sm btn-del" onClick={() => { setWithOrders(false); setDelIds([b.id]); }} aria-label="刪除">刪除</button>
                   </td>
                 </tr>
               ))}
@@ -139,6 +157,13 @@ export default function Bookings() {
         </div>
       )}
       {cancel && <Confirm title="取消預約？" danger confirmText="確定取消" message={`${cancel.name}｜${fmtDate(cancel.date)} ${cancel.time}｜${cancel.service_name}。取消後會釋放時段、同步取消訂單，並通知客戶。`} onConfirm={doCancel} onCancel={() => setCancel(null)} />}
+      {delIds && (
+        <Confirm title={`刪除 ${delIds.length} 筆預約？`} danger confirmText="確定刪除"
+          message="刪除後無法復原，時段會立即釋放（不會通知客戶）。刪除動作會記錄在「變更紀錄」。如果只是客人不來，建議用「取消」保留紀錄。"
+          onConfirm={doDelete} onCancel={() => setDelIds(null)}>
+          <label className="flex small mt-2"><input type="checkbox" checked={withOrders} onChange={(e) => setWithOrders(e.target.checked)} />同時刪除關聯的訂單、相簿與照片檔</label>
+        </Confirm>
+      )}
       {resched && <RescheduleModal booking={resched} onClose={() => setResched(null)} onDone={() => { setResched(null); load(); }} />}
       {params.get("new") && <NewBookingModal onClose={() => setParams({})} onDone={() => { setParams({}); load(); }} />}
     </>

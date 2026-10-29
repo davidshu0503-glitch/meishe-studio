@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { errMsg, imgUrl, kickNotifications, supabase } from "../../lib/supabase";
 import { useSite } from "../../lib/site";
 import { csvDownload, fmtDate, fmtDateTime, money, normPhone, ORDER_STATUSES, resizeImage, stem, twDate, uid } from "../../lib/utils";
-import { Confirm, Field, Spinner, StatusBadge, useToast } from "../../components/ui";
+import { BulkBar, CheckAll, CheckCell, Confirm, Field, Spinner, StatusBadge, useSelection, useSort, useToast } from "../../components/ui";
+import { deleteOrders } from "../../lib/records";
 
 /* ---------------- 訂單列表 ---------------- */
 export default function Orders() {
@@ -13,18 +14,26 @@ export default function Orders() {
   const [q, setQ] = useState(params.get("booking") || "");
   const status = params.get("status") || "全部";
   const [date, setDate] = useState("");
+  const [delIds, setDelIds] = useState(null);
+  const toast = useToast();
 
-  useEffect(() => {
-    supabase.from("orders").select("*").order("created_at", { ascending: false }).limit(3000).then(({ data }) => setRows(data || []));
-  }, []);
+  const load = () => supabase.from("orders").select("*").order("created_at", { ascending: false }).limit(3000).then(({ data }) => setRows(data || []));
+  useEffect(() => { load(); }, []);
 
-  const list = useMemo(() => (rows || []).filter((o) => {
+  const { apply, th } = useSort("created_at", "desc");
+  const list = useMemo(() => apply((rows || []).filter((o) => {
     if (status !== "全部" && o.status !== status) return false;
     if (date && String(o.date) !== date) return false;
     if (!q) return true;
     const k = q.toLowerCase();
     return [o.id, o.booking_id, o.customer_name, o.service_name].some((v) => (v || "").toLowerCase().includes(k)) || (normPhone(q) && normPhone(o.phone).includes(normPhone(q)));
-  }), [rows, q, status, date]);
+  })), [rows, q, status, date, apply]);
+  const selection = useSelection(list);
+  const doDelete = async () => {
+    try { const n = await deleteOrders(delIds); toast(`已刪除 ${n} 筆訂單（含相簿與照片檔）`); }
+    catch (e) { toast(errMsg(e), "err"); }
+    setDelIds(null); selection.clear(); load();
+  };
 
   return (
     <>
@@ -41,13 +50,17 @@ export default function Orders() {
         {(q || date || status !== "全部") && <button className="btn-link small" onClick={() => { setQ(""); setDate(""); setParams({}); }}>清除篩選</button>}
         <span className="small muted">共 {list.length} 筆</span>
       </div>
+      <BulkBar selection={selection}>
+        <button className="btn btn-sm btn-danger" onClick={() => setDelIds(selection.ids)}>刪除所選</button>
+      </BulkBar>
       {!rows ? <Spinner /> : list.length === 0 ? <div className="empty">沒有符合的訂單</div> : (
         <div className="table-wrap">
           <table className="tbl">
-            <thead><tr><th>訂單編號</th><th>客戶</th><th>服務</th><th>拍攝日</th><th>金額</th><th>狀態</th></tr></thead>
+            <thead><tr><CheckAll selection={selection} />{th("created_at", "訂單編號")}{th("customer_name", "客戶")}{th("service_name", "服務")}{th("date", "拍攝日")}{th("amount", "金額")}{th("status", "狀態")}</tr></thead>
             <tbody>
               {list.map((o) => (
-                <tr key={o.id} className="click" onClick={() => nav(`/admin/orders/${o.id}`)}>
+                <tr key={o.id} className={`click ${selection.has(o.id) ? "sel" : ""}`} onClick={() => nav(`/admin/orders/${o.id}`)}>
+                  <CheckCell selection={selection} id={o.id} />
                   <td className="small">{o.id}</td>
                   <td><b>{o.customer_name}</b><div className="small muted">{o.phone}</div></td>
                   <td>{o.service_name}</td>
@@ -60,6 +73,9 @@ export default function Orders() {
           </table>
         </div>
       )}
+      {delIds && <Confirm title={`刪除 ${delIds.length} 筆訂單？`} danger confirmText="確定刪除"
+        message="訂單、相簿、預覽照與精修檔都會永久刪除，無法復原（預約紀錄保留）。刪除動作會記錄在「變更紀錄」。只是客人取消的話，建議把狀態改成「已取消」即可。"
+        onConfirm={doDelete} onCancel={() => setDelIds(null)} />}
     </>
   );
 }
@@ -98,6 +114,7 @@ const NEXT_STEP = {
 
 export function OrderDetail() {
   const { id } = useParams();
+  const nav = useNavigate();
   const toast = useToast();
   const { studio } = useSite();
   const [order, setOrder] = useState(null);
@@ -215,6 +232,11 @@ export function OrderDetail() {
     setConfirm(null); load();
   };
 
+  const removeOrder = async () => {
+    try { await deleteOrders([order.id]); toast("訂單已刪除"); nav("/admin/orders"); }
+    catch (e) { toast(errMsg(e), "err"); setConfirm(null); }
+  };
+
   const clientLink = `${window.location.origin}/gallery?order=${order.id}`;
   const shown = onlySel ? photos.filter((p) => p.selected) : photos;
   const selCount = photos.filter((p) => p.selected).length;
@@ -235,6 +257,7 @@ export function OrderDetail() {
           <select className="select" style={{ width: "auto", padding: "7px 10px" }} value={order.status} onChange={(e) => setConfirm({ type: "status", value: e.target.value })}>
             {ORDER_STATUSES.map((s) => <option key={s}>{s}</option>)}
           </select>
+          <button className="btn btn-ghost btn-sm btn-del" onClick={() => setConfirm({ type: "delete" })}>刪除訂單</button>
         </div>
       </div>
       {next?.[0] === "待選片" && !photos.length && <div className="alert alert-info mb-2 small">請先建立相簿並上傳預覽照片，才能開放選片。</div>}
@@ -317,6 +340,11 @@ export function OrderDetail() {
       {confirm?.type === "status" && (
         <Confirm title="變更訂單狀態？" message={`「${order.status}」→「${confirm.value}」。${confirm.value === "已取消" ? "取消會同步取消預約並釋放時段。" : ""}系統會依狀態自動通知客戶。`}
           danger={confirm.value === "已取消"} onConfirm={async () => { await setStatus(confirm.value); setConfirm(null); }} onCancel={() => setConfirm(null)} />
+      )}
+      {confirm?.type === "delete" && (
+        <Confirm title="刪除這筆訂單？" danger confirmText="確定刪除"
+          message={`${order.id}｜${order.customer_name}｜${order.service_name}。訂單、相簿、${photos.length} 張照片與精修檔都會永久刪除，無法復原（預約紀錄保留）。`}
+          onConfirm={removeOrder} onCancel={() => setConfirm(null)} />
       )}
       {confirm?.type === "photo" && (
         <Confirm title="刪除照片？" danger message={`${confirm.photo.filename || "此照片"} 的預覽與精修檔都會刪除，無法復原。`} onConfirm={() => deletePhoto(confirm.photo)} onCancel={() => setConfirm(null)} />

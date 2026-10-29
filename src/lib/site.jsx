@@ -1,6 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { supabase } from "./supabase";
-import { DEFAULT_BOOKING, DEFAULT_CATEGORIES, DEFAULT_HERO, DEFAULT_PORTFOLIO, DEFAULT_SERVICES, DEFAULT_STUDIO } from "./defaults";
+import { DEFAULT_BOOKING, DEFAULT_CATEGORIES, DEFAULT_HERO, DEFAULT_PORTFOLIO, DEFAULT_SERVICES, DEFAULT_STUDIO, DEFAULT_STYLE_SETS } from "./defaults";
+import { tierOf } from "./utils";
+
+const withTier = (rows) => rows.map((r) => ({ ...r, tier: tierOf(r) }));
 
 const SiteCtx = createContext(null);
 
@@ -12,9 +15,10 @@ export function SiteProvider({ children }) {
     studio: DEFAULT_STUDIO,
     hero: DEFAULT_HERO,
     booking: DEFAULT_BOOKING,
-    services: DEFAULT_SERVICES,
-    categories: DEFAULT_CATEGORIES,
+    services: withTier(DEFAULT_SERVICES),
+    categories: withTier(DEFAULT_CATEGORIES),
     portfolio: DEFAULT_PORTFOLIO,
+    styleSets: DEFAULT_STYLE_SETS,
   });
 
   const load = useCallback(async () => {
@@ -26,6 +30,8 @@ export function SiteProvider({ children }) {
         supabase.from("portfolio").select("*").eq("published", true).order("sort").order("created_at", { ascending: false }),
       ]);
       if (st.error || sv.error || ct.error || pf.error) throw st.error || sv.error || ct.error || pf.error;
+      // 一拍多風格：資料表還沒建立（尚未執行 03-upgrade.sql）時使用內建範例，不影響其他內容
+      const ss = await supabase.from("style_sets").select("*").eq("published", true).order("sort");
       const s = Object.fromEntries((st.data || []).map((r) => [r.key, r.value]));
       setState({
         loading: false,
@@ -33,9 +39,10 @@ export function SiteProvider({ children }) {
         studio: { ...DEFAULT_STUDIO, ...(s.studio || {}) },
         hero: Array.isArray(s.hero) && s.hero.length ? s.hero : DEFAULT_HERO,
         booking: { ...DEFAULT_BOOKING, ...(s.booking || {}) },
-        services: sv.data?.length ? sv.data : DEFAULT_SERVICES,
-        categories: ct.data?.length ? ct.data : DEFAULT_CATEGORIES,
+        services: withTier(sv.data?.length ? sv.data : DEFAULT_SERVICES),
+        categories: withTier(ct.data?.length ? ct.data : DEFAULT_CATEGORIES),
         portfolio: pf.data || [],
+        styleSets: ss.error ? DEFAULT_STYLE_SETS : ss.data || [],
       });
     } catch (e) {
       console.warn("[GIME] 使用預設內容：", e?.message || e);

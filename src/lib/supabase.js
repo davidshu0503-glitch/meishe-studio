@@ -17,6 +17,8 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 /** 把 storage 路徑轉成可顯示的網址；已是完整網址就原樣回傳 */
 export function imgUrl(path, bucket = "portfolio", opts) {
   if (!path) return "";
+  // 網站內建作品（public/works/）：示範版部署在子資料夾時也能正確顯示
+  if (path.startsWith("/works/")) return import.meta.env.BASE_URL + path.slice(1);
   if (/^https?:\/\//.test(path) || path.startsWith("data:") || path.startsWith("blob:") || path.startsWith("/")) return path;
   if (DEMO && window.__GIME_DEMO_FILES?.[`${bucket}/${path}`]) return window.__GIME_DEMO_FILES[`${bucket}/${path}`];
   const { data } = supabase.storage.from(bucket).getPublicUrl(path, opts);
@@ -50,5 +52,6 @@ export function errMsg(error) {
   if (/bookings_slot_uq/i.test(m)) return "此時段已有其他預約";
   if (/Failed to fetch|NetworkError/i.test(m)) return "網路連線失敗，請稍後再試";
   if (/row-level security/i.test(m)) return "沒有權限執行此操作";
+  if (/style_sets|column.*(tier|name_en)|'(tier|name_en|description)' column/i.test(m)) return "資料庫尚未升級：請先在 Supabase 執行 supabase/03-upgrade.sql";
   return m;
 }

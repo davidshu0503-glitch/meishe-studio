@@ -100,3 +100,28 @@ export function csvDownload(filename, rows) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
+
+/* ---------- 作品／服務分層：一拍多風格 → 主力 → 加值 → 引流 ---------- */
+// name：後台用的內部名稱；label：前台顯示給客人看的名稱（不會出現「引流」等行銷用語）
+export const TIERS = {
+  main: { name: "主力", label: "典藏藝術肖像", en: "Signature Art", desc: "金箔、厚塗油畫、雕塑材質。適合做成大幅掛畫，掛在客廳傳家的作品。" },
+  addon: { name: "加值", label: "風格加購", en: "Style Add-ons", desc: "同一組照片再轉成奇幻、水彩、水墨、普普等風格，拍一次就能擁有多種版本。" },
+  entry: { name: "引流", label: "入門拍攝", en: "Start Here", desc: "形象照、證件照、孕婦寫真、全家福。每件藝術作品，都從一次好好的拍攝開始。" },
+  hidden: { name: "不顯示", label: "", en: "", desc: "" },
+};
+export const TIER_ORDER = ["main", "addon", "entry"];
+export const TIER_KEYS = [...TIER_ORDER, "hidden"];
+
+// 資料庫還沒升級（沒有 tier 欄位）時，依代碼推測分層
+const TIER_GUESS = {
+  gold_leaf: "main", impasto_oil: "main", sculpture: "main",
+  fantasy_light: "addon", watercolor: "addon", ink_sketch: "addon", pop_art: "addon", cinematic: "addon", mixed_media: "addon", ai_art: "addon",
+  portrait: "entry", maternity: "entry", family: "entry", bw_studio: "entry", wedding: "entry", commercial: "entry",
+  id_photo: "entry", business: "entry", wedding_pkg: "entry", commercial_pkg: "entry", ai_portrait: "addon", ai_creation: "addon", art_print: "main", art_collection: "main",
+};
+export const tierOf = (row) => (TIER_KEYS.includes(row?.tier) ? row.tier : TIER_GUESS[row?.slug || row?.id] || "addon");
+
+/** 價格顯示：0 元代表需洽詢報價 */
+export const priceText = (s) => (Number(s?.price) > 0 ? money(s.price) : s?.price_note || "洽詢報價");
+/** 價格後綴（「起」「／2 小時」）；洽詢報價時後綴已經顯示在主價格，不重複 */
+export const priceNote = (s) => (Number(s?.price) > 0 ? s?.price_note || "" : "");
