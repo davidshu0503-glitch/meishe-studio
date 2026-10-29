@@ -6,11 +6,17 @@ import { priceNote, priceText, TIERS } from "../lib/utils";
 import { Reveal, useTitle } from "../components/ui";
 import Protect, { Watermark } from "../components/Protect";
 import StyleShowcase from "../components/StyleShowcase";
+import { OfferCard, PromoLink } from "../components/Promo";
 
 const HERO_MS = 6000;
 
 function Hero() {
-  const { hero, studio, categories } = useSite();
+  const { hero: baseHero, studio, categories, promotions } = useSite();
+  // 行銷管理的「首頁橫幅」排在輪播最前面
+  const hero = useMemo(() => [
+    ...promotions.filter((p) => p.kind === "hero" && p.image).map((p) => ({ image: p.image, promo: p })),
+    ...baseHero,
+  ], [promotions, baseHero]);
   const [i, setI] = useState(0);
   const nav = useNavigate();
   useEffect(() => {
@@ -19,15 +25,27 @@ function Hero() {
     return () => clearTimeout(t);
   }, [i, hero.length]);
   const s = hero[i] || {};
+  const promo = s.promo;
   const catSlug = (name) => categories.find((c) => c.name === name)?.slug;
 
   return (
-    <section className="hero" aria-label="主視覺">
+    <section className={`hero ${promo ? "promo-on" : ""}`} aria-label="主視覺">
       {hero.map((h, k) => (
-        <div key={k} className={`hero-slide ${k === i ? "on" : ""}`} aria-hidden={k !== i}>
-          <img src={imgUrl(h.image, "portfolio")} alt={h.headline || ""} loading={k === 0 ? "eager" : "lazy"} />
+        <div key={k} className={`hero-slide ${k === i ? "on" : ""} ${h.promo ? "is-promo" : ""}`} aria-hidden={k !== i}>
+          <img src={imgUrl(h.image, "portfolio")} alt={h.headline || h.promo?.title || ""} loading={k === 0 ? "eager" : "lazy"} />
         </div>
       ))}
+      {promo && (
+        <div className="hero-promo" key={`p${i}`}>
+          {promo.badge && <span className="promo-badge hero-anim">{promo.badge}</span>}
+          <h2 className="hero-anim" style={{ animationDelay: ".1s" }}>{promo.title}</h2>
+          {promo.subtitle && <p className="hero-anim" style={{ animationDelay: ".2s" }}>{promo.subtitle}</p>}
+          <div className="hero-cta hero-anim" style={{ animationDelay: ".3s", justifyContent: "flex-start", marginTop: 6 }}>
+            <PromoLink promo={promo} className="btn btn-accent">{promo.cta_label || "立即預約"}</PromoLink>
+            {promo.code && <span className="promo-code" style={{ background: "rgba(255,255,255,.9)" }}>代碼 <b>{promo.code}</b></span>}
+          </div>
+        </div>
+      )}
       <div className="hero-content">
         <div className="hero-brand hero-anim">{studio.name_en} • {studio.tagline}</div>
         {studio.hero_title ? (
@@ -48,7 +66,7 @@ function Hero() {
             onClick={(e) => { e.preventDefault(); document.getElementById("oneshot")?.scrollIntoView({ behavior: "smooth" }); }}>看一拍多風格 →</a>
         </div>
       </div>
-      {s.cat && (
+      {s.cat && !promo && (
         <button className="hero-cat" style={{ background: "none", border: 0, color: "#fff" }}
           onClick={() => nav(`/portfolio${catSlug(s.cat) ? `?cat=${catSlug(s.cat)}` : ""}`)}>— {s.cat}</button>
       )}
@@ -96,7 +114,8 @@ function TierHead({ tier, index }) {
 
 export default function Home() {
   useTitle("");
-  const { studio, services, portfolio, categories, styleSets } = useSite();
+  const { studio, services, portfolio, categories, styleSets, promotions } = useSite();
+  const offers = promotions.filter((p) => p.kind === "offer").slice(0, 3);
 
   const byTier = useMemo(() => {
     const m = { main: [], addon: [], entry: [] };
@@ -116,6 +135,19 @@ export default function Home() {
   return (
     <>
       <Hero />
+
+      {/* 限時優惠（行銷管理 → 優惠活動；沒有進行中的活動就不顯示） */}
+      {offers.length > 0 && (
+        <section className="section-tight offer-strip" style={{ padding: "36px 0" }}>
+          <div className="wrap">
+            <div className="offer-strip-head">
+              <div><div className="eyebrow">Limited Offers</div><h2 className="title-md">限時優惠</h2></div>
+              <Link to="/offers" className="btn-link small">看全部優惠活動 →</Link>
+            </div>
+            <div className="offer-row">{offers.map((p) => <OfferCard key={p.id} promo={p} services={services} />)}</div>
+          </div>
+        </section>
+      )}
 
       {/* 01 一拍多風格 */}
       {hasSets && (

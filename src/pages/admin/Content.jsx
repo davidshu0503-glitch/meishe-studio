@@ -27,7 +27,7 @@ async function saveSetting(key, value, isPublic = true) {
   return supabase.from("settings").upsert({ key, value, is_public: isPublic });
 }
 
-async function uploadPortfolioImage(file) {
+export async function uploadPortfolioImage(file) {
   const small = await resizeImage(file, { maxSize: 2000, quality: 0.86 });
   const path = `${uid()}.jpg`;
   const { error } = await supabase.storage.from("portfolio").upload(path, small, { contentType: "image/jpeg", cacheControl: "31536000" });
@@ -35,12 +35,12 @@ async function uploadPortfolioImage(file) {
   return path;
 }
 
-function ImagePicker({ value, onChange, label = "圖片" }) {
+export function ImagePicker({ value, onChange, label = "圖片", hint }) {
   const ref = useRef();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   return (
-    <Field label={label} full>
+    <Field label={label} full hint={hint}>
       <div className="flex flex-wrap">
         {value && <img src={imgUrl(value, "portfolio")} alt="" style={{ width: 96, height: 64, objectFit: "cover", borderRadius: 4 }} />}
         <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => ref.current.click()}>{busy ? "上傳中…" : "上傳圖片"}</button>

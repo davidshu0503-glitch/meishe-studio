@@ -11,6 +11,8 @@ import Notifications from "./Notifications";
 import Content from "./Content";
 import AuditLogs from "./AuditLogs";
 import Cleanup from "./Cleanup";
+import Marketing from "./Marketing";
+import { promoStatus } from "../../lib/promos";
 
 function AdminLogin() {
   const { user, signOut } = useAuth();
@@ -52,6 +54,7 @@ export default function Admin() {
   const { ready, user, isAdmin, role, signOut } = useAuth();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(0);
+  const [livePromos, setLivePromos] = useState(0);
   const loc = useLocation();
   const toast = useToast();
   const logout = async () => { await signOut(); toast("已登出"); };
@@ -62,10 +65,13 @@ export default function Admin() {
     const load = () => supabase.from("notifications").select("id", { count: "exact", head: true })
       .eq("processed", false).or("audience.eq.studio,status.eq.failed")
       .then(({ count }) => setPending(count || 0));
-    load();
-    const t = setInterval(load, 60000);
+    const loadPromos = () => supabase.from("promotions").select("published,start_at,end_at").eq("published", true)
+      .then(({ data }) => setLivePromos((data || []).filter((p) => promoStatus(p) === "live").length));
+    load(); loadPromos();
+    const t = setInterval(() => { load(); loadPromos(); }, 60000);
+    window.addEventListener("gime:promos", loadPromos);
     window.addEventListener("gime:notifications", load);
-    return () => { clearInterval(t); window.removeEventListener("gime:notifications", load); };
+    return () => { clearInterval(t); window.removeEventListener("gime:notifications", load); window.removeEventListener("gime:promos", loadPromos); };
   }, [isAdmin]);
 
   if (!ready || (user && role === null)) return <Spinner />;
@@ -78,6 +84,7 @@ export default function Admin() {
     ["/admin/customers", "客戶管理"],
     ["/admin/notifications", "通知中心", false, pending],
     ["/admin/content", "網站內容"],
+    ["/admin/marketing", "行銷管理", false, livePromos, "live"],
     ["/admin/audit", "變更紀錄"],
     ["/admin/cleanup", "資料整理"],
   ];
@@ -91,8 +98,8 @@ export default function Admin() {
       </div>
       <aside className={`admin-side ${open ? "open" : ""}`}>
         <Link to="/" className="brand"><span className="brand-zh">即美創畫攝影</span><span className="brand-en">GIME STUDIO • ADMIN</span></Link>
-        {links.map(([to, label, end, count]) => (
-          <NavLink key={to} to={to} end={end}>{label}{count > 0 && <span className="count">{count}</span>}</NavLink>
+        {links.map(([to, label, end, count, tone]) => (
+          <NavLink key={to} to={to} end={end}>{label}{count > 0 && <span className={`count ${tone || ""}`} title={tone === "live" ? "進行中的活動" : undefined}>{count}</span>}</NavLink>
         ))}
         <div className="foot">
           <span style={{ wordBreak: "break-all" }}>{user.email}</span>
@@ -112,6 +119,7 @@ export default function Admin() {
           <Route path="content" element={<Content />} />
           <Route path="audit" element={<AuditLogs />} />
           <Route path="cleanup" element={<Cleanup />} />
+          <Route path="marketing" element={<Marketing />} />
         </Routes>
       </main>
     </div>

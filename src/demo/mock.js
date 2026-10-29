@@ -21,7 +21,7 @@ class DbError extends Error { constructor(msg, status = 400, c = "P0001") { supe
 /* ---------------- 資料 ---------------- */
 const T = {
   users: [], profiles: [], settings: [], categories: [], portfolio: [], services: [], blocked_dates: [],
-  customers: [], bookings: [], orders: [], albums: [], photos: [], notifications: [], audit_logs: [], style_sets: [],
+  customers: [], bookings: [], orders: [], albums: [], photos: [], notifications: [], audit_logs: [], style_sets: [], promotions: [],
 };
 const PK = { settings: "key", categories: "slug", blocked_dates: "date" };
 const pk = (t) => PK[t] || "id";
@@ -92,6 +92,20 @@ function seed() {
   T.photos.filter((p) => p.selected).forEach((p) => (p.retouch_status = "修圖中"));
   album(done, 8, true, [0, 2, 5]);
 
+  // 行銷管理示範（僅示範版，正式版不會建立任何活動）
+  const day = (d) => new Date(Date.now() + d * 86400000).toISOString();
+  const promo = (o) => T.promotions.push({ ...DEFAULTS.promotions(), ...o });
+  promo({ kind: "bar", title: "（示範）年末檔期開放預約，全家福與孕婦寫真名額有限", badge: "公告", cta_label: "看優惠活動", cta_link: "/offers", published: true, end_at: day(30), clicks: 37 });
+  promo({ kind: "hero", title: "（示範）全家福，畫成傳家的油畫", subtitle: "年末檔期・拍全家福加購厚塗油畫", badge: "檔期限定", image: "/works/oil-01.jpg", code: "FAMILY26", cta_label: "預約全家福", cta_link: "/booking?service=family", published: true, end_at: day(30), clicks: 52 });
+  promo({ kind: "offer", title: "（示範）全家福 × 厚塗油畫檔期", subtitle: "拍全家福，最喜歡的一張做成油畫掛畫", body: "示範用的活動內容。實際優惠請在後台「行銷管理」自行設定。", badge: "檔期限定", image: "/works/oil-03.jpg", code: "FAMILY26", cta_label: "預約全家福", cta_link: "/booking?service=family", service_ids: ["family"], published: true, end_at: day(30), sort: 1, clicks: 18 });
+  promo({ kind: "offer", title: "（示範）孕期紀念：寫真＋浮雕版", subtitle: "孕婦寫真加做石膏浮雕或奇幻風格", badge: "加購", image: "/works/sculpture-03.jpg", code: "BUMP26", cta_label: "預約孕婦寫真", cta_link: "/booking?service=portrait", service_ids: ["portrait"], published: true, end_at: day(12), sort: 2, clicks: 9 });
+  promo({ kind: "offer", title: "（示範）形象照＋一拍多風格", subtitle: "商務形象照加購普普、版畫、素描版本", badge: "新方案", image: "/works/setA-01.jpg", code: "STYLE7", cta_label: "預約形象照", cta_link: "/booking?service=business", service_ids: ["business", "ai_portrait"], published: true, sort: 3, clicks: 24 });
+  promo({ kind: "popup", title: "（示範）年末檔期開跑", subtitle: "全家福、孕婦寫真加購藝術風格，名額有限", image: "/works/gold-01.jpg", code: "FAMILY26", cta_label: "看優惠活動", cta_link: "/offers", published: true, end_at: day(30) });
+  promo({ kind: "offer", title: "（示範）母親節長輩肖像", subtitle: "排程中：時間到會自動上架", badge: "排程", image: "/works/setF-02.jpg", code: "MOM27", published: true, start_at: day(20), end_at: day(50) });
+  promo({ kind: "offer", title: "（示範）夏季證件照", subtitle: "已結束的活動", code: "SUMMER26", published: true, start_at: day(-160), end_at: day(-120), clicks: 41 });
+  promo({ kind: "hero", title: "（示範）草稿：情人節雙人金箔", image: "/works/gold-06.jpg", published: false });
+  T.bookings.filter((b) => b.status === "已預約").slice(0, 2).forEach((b) => { b.note = `【優惠 FAMILY26｜（示範）全家福 × 厚塗油畫檔期】\n${b.note}`; });
+
   // 讓「資料整理」有東西可以試：舊的取消預約、舊通知、舊變更紀錄、沒有預約的客戶
   const old = (d) => new Date(Date.now() - d * 86400000).toISOString();
   [[130, "11:00"], [150, "15:00"], [200, "10:00"]].forEach(([d, t], k) => {
@@ -122,6 +136,7 @@ function visible(table, row) {
     case "settings": return row.is_public;
     case "categories": case "blocked_dates": return true;
     case "portfolio": case "style_sets": return row.published;
+    case "promotions": return row.published && (!row.start_at || row.start_at <= now()) && (!row.end_at || row.end_at > now());
     case "services": return row.active;
     case "profiles": return row.id === currentUid;
     case "customers": return !!currentUid && row.auth_user_id === currentUid;
@@ -132,7 +147,7 @@ function visible(table, row) {
 }
 
 /* ---------------- 稽核與通知 ---------------- */
-const AUDITED = ["customers", "bookings", "orders", "services", "portfolio", "style_sets", "settings", "categories", "blocked_dates"];
+const AUDITED = ["customers", "bookings", "orders", "services", "portfolio", "style_sets", "promotions", "settings", "categories", "blocked_dates"];
 function audit(table, action, before, after) {
   if (!AUDITED.includes(table)) return;
   if (action === "update") {
@@ -215,6 +230,7 @@ function checkUnique(table, row) {
 }
 const DEFAULTS = {
   portfolio: () => ({ id: rid(), title: "", description: "", images: [], featured: false, published: true, sort: 0, created_at: now() }),
+  promotions: () => ({ id: rid(), kind: "offer", title: "", subtitle: "", body: "", image: "", badge: "", code: "", cta_label: "", cta_link: "", service_ids: [], start_at: null, end_at: null, published: false, sort: 0, clicks: 0, created_at: now() }),
   style_sets: () => ({ id: rid(), title: "", description: "", original: "", styles: [], published: true, sort: 0, created_at: now() }),
   categories: () => ({ tier: "addon", name_en: "", description: "", sort: 0 }),
   services: () => ({ tier: "entry", subtitle: "", description: "", price: 0, price_note: "", duration_label: "", features: [], image: "", featured: false, bookable: true, active: true, sort: 0 }),
@@ -270,6 +286,7 @@ function galleryGet(orderId, phone) {
   };
 }
 const RPC = {
+  promo_click: ({ p_id }) => { const p = T.promotions.find((x) => x.id === p_id); if (p && p.published && (!p.start_at || p.start_at <= now()) && (!p.end_at || p.end_at > now())) p.clicks = (p.clicks || 0) + 1; return null; },
   get_booked_slots: ({ p_from, p_to }) => T.bookings.filter((b) => b.status !== "已取消" && b.date >= p_from && b.date <= p_to).map((b) => ({ date: b.date, time: b.time })),
   create_booking: (a) => {
     const name = (a.p_name || "").trim(), phone = normPhone(a.p_phone), email = normEmail(a.p_email);
@@ -390,7 +407,7 @@ function matchOp(val, op, arg) {
     case "lte": return s !== null && (typeof val === "number" ? val <= Number(arg) : s <= arg);
     case "is": return arg === "null" ? s === null : s === arg;
     case "in": return arg.replace(/^\(|\)$/g, "").split(",").map((x) => x.replace(/^"|"$/g, "")).includes(s);
-    case "ilike": return s !== null && new RegExp("^" + arg.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/[*%]/g, ".*") + "$", "i").test(s);
+    case "ilike": return s !== null && new RegExp("^" + arg.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/[*%]/g, ".*") + "$", "is").test(s);
     default: return true;
   }
 }

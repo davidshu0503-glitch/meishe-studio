@@ -4,10 +4,12 @@ import { useSite } from "../lib/site";
 import { priceNote, priceText, TIER_ORDER, TIERS } from "../lib/utils";
 import { PageHero, Reveal, useTitle } from "../components/ui";
 import StyleShowcase from "../components/StyleShowcase";
+import { PromoLink } from "../components/Promo";
 
 export default function Services() {
   useTitle("服務與價格");
-  const { services, studio, styleSets } = useSite();
+  const { services, studio, styleSets, promotions } = useSite();
+  const offerFor = (id) => promotions.find((p) => p.kind === "offer" && (p.service_ids || []).includes(id));
   const { hash } = useLocation();
   useEffect(() => {
     if (!hash) return;
@@ -24,9 +26,15 @@ export default function Services() {
       {s.duration_label && <div className="small muted">拍攝時間：{s.duration_label}</div>}
       <p className="small" style={{ color: "var(--ink-2)" }}>{s.description}</p>
       {s.features?.length > 0 && <ul>{s.features.map((f) => <li key={f}>{f}</li>)}</ul>}
+      {offerFor(s.id) && (
+        <PromoLink promo={offerFor(s.id)} className="svc-offer">
+          <b>優惠中｜{offerFor(s.id).title}</b>
+          {offerFor(s.id).subtitle && <span>{offerFor(s.id).subtitle}</span>}
+        </PromoLink>
+      )}
       <div className="spacer" />
       {s.bookable
-        ? <Link to={`/booking?service=${s.id}`} className="btn btn-sm">預約此服務</Link>
+        ? <Link to={`/booking?service=${s.id}${offerFor(s.id)?.code ? `&promo=${encodeURIComponent(offerFor(s.id).code)}` : ""}`} className="btn btn-sm">預約此服務</Link>
         : <a href={`tel:${(studio.phone || "").replace(/[^\d+]/g, "")}`} className="btn btn-ghost btn-sm">來電洽詢 {studio.phone}</a>}
     </Reveal>
   );

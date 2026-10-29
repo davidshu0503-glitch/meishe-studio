@@ -3,10 +3,11 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-do
 import { useToast } from "./ui";
 import { useSite } from "../lib/site";
 import { useAuth } from "../lib/auth";
+import { PromoBar, PromoPopup } from "./Promo";
 
 function Header() {
   const { pathname } = useLocation();
-  const { studio } = useSite();
+  const { studio, promotions } = useSite();
   const { user, isAdmin, signOut } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
@@ -23,11 +24,17 @@ function Header() {
   }, []);
   useEffect(() => { setOpen(false); }, [pathname]);
   useEffect(() => { document.body.style.overflow = open ? "hidden" : ""; }, [open]);
+  useEffect(() => {
+    document.documentElement.classList.toggle("has-admin-strip", !!isAdmin);
+    return () => document.documentElement.classList.remove("has-admin-strip");
+  }, [isAdmin]);
+  const hasOffers = promotions.some((p) => p.kind === "offer");
 
   const solid = !transparentTop || scrolled || open;
   return (
     <>
-      <header className={`header ${solid ? "solid" : ""}`} style={isAdmin ? { top: 34 } : undefined}>
+      <PromoBar />
+      <header className={`header ${solid ? "solid" : ""}`}>
         <div className="wrap">
           <Link to="/" className="brand" aria-label="回首頁">
             <span className="brand-zh">{studio.name}</span>
@@ -39,6 +46,7 @@ function Header() {
           <nav className={`nav ${open ? "open" : ""}`}>
             <NavLink to="/portfolio">作品集</NavLink>
             <NavLink to="/services">服務與價格</NavLink>
+            {hasOffers && <NavLink to="/offers" className="nav-offer">優惠活動</NavLink>}
             <NavLink to="/about">關於我們</NavLink>
             <NavLink to="/gallery" className="nav-sub">選片／交件</NavLink>
             <NavLink to="/member" className="nav-sub">{user && !isAdmin ? "會員中心" : "會員登入"}</NavLink>
@@ -54,6 +62,7 @@ function Header() {
             <Link to="/admin/bookings">預約</Link>
             <Link to="/admin/orders">訂單</Link>
             <Link to="/admin/content">網站內容</Link>
+            <Link to="/admin/marketing">行銷</Link>
             <button className="strip-logout" onClick={logout}>登出</button>
           </div>
         </div>
@@ -94,6 +103,7 @@ function Footer() {
             <h4>快速連結</h4>
             <div className="links">
               <Link to="/booking">線上預約</Link>
+              <Link to="/offers">優惠活動</Link>
               <Link to="/gallery">線上選片／交件</Link>
               <Link to="/member">會員中心</Link>
               {studio.line_url && <a href={studio.line_url} target="_blank" rel="noreferrer">LINE 官方帳號</a>}
@@ -119,6 +129,7 @@ export default function Layout() {
       <Header />
       <main><Outlet /></main>
       <Footer />
+      <PromoPopup />
     </>
   );
 }

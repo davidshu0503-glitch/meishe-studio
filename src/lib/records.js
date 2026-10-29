@@ -56,6 +56,7 @@ export async function deleteBookings(bookingIds, { withOrders = false } = {}) {
 export const deleteCustomers = (ids) => del("customers", ids);
 export const deleteNotifications = (ids) => del("notifications", ids);
 export const deleteAuditLogs = (ids) => del("audit_logs", ids);
+export const deleteRows = (table, ids) => del(table, ids);
 
 /** 依條件找出要整理的紀錄編號（先預覽數量，確認後再刪） */
 export async function findIds(table, build, key = "id") {

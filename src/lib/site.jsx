@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { supabase } from "./supabase";
 import { DEFAULT_BOOKING, DEFAULT_CATEGORIES, DEFAULT_HERO, DEFAULT_PORTFOLIO, DEFAULT_SERVICES, DEFAULT_STUDIO, DEFAULT_STYLE_SETS } from "./defaults";
 import { tierOf } from "./utils";
+import { isLive } from "./promos";
 
 const withTier = (rows) => rows.map((r) => ({ ...r, tier: tierOf(r) }));
 
@@ -19,6 +20,7 @@ export function SiteProvider({ children }) {
     categories: withTier(DEFAULT_CATEGORIES),
     portfolio: DEFAULT_PORTFOLIO,
     styleSets: DEFAULT_STYLE_SETS,
+    promotions: [],
   });
 
   const load = useCallback(async () => {
@@ -31,7 +33,11 @@ export function SiteProvider({ children }) {
       ]);
       if (st.error || sv.error || ct.error || pf.error) throw st.error || sv.error || ct.error || pf.error;
       // 一拍多風格：資料表還沒建立（尚未執行 03-upgrade.sql）時使用內建範例，不影響其他內容
-      const ss = await supabase.from("style_sets").select("*").eq("published", true).order("sort");
+      const [ss, pr] = await Promise.all([
+        supabase.from("style_sets").select("*").eq("published", true).order("sort"),
+        // 行銷活動：資料庫只回傳進行中的活動（管理員登入時會回傳全部，所以再篩一次）
+        supabase.from("promotions").select("*").eq("published", true).order("sort").order("created_at", { ascending: false }),
+      ]);
       const s = Object.fromEntries((st.data || []).map((r) => [r.key, r.value]));
       setState({
         loading: false,
@@ -43,6 +49,7 @@ export function SiteProvider({ children }) {
         categories: withTier(ct.data?.length ? ct.data : DEFAULT_CATEGORIES),
         portfolio: pf.data || [],
         styleSets: ss.error ? DEFAULT_STYLE_SETS : ss.data || [],
+        promotions: pr.error ? [] : (pr.data || []).filter((p) => isLive(p)),
       });
     } catch (e) {
       console.warn("[GIME] 使用預設內容：", e?.message || e);

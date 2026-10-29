@@ -13,6 +13,7 @@ import About from "./pages/About";
 import Booking from "./pages/Booking";
 import Gallery from "./pages/Gallery";
 import Member from "./pages/Member";
+import Offers from "./pages/Offers";
 
 const Admin = lazy(() => import("./pages/admin/Admin"));
 const DemoBanner = import.meta.env.VITE_DEMO === "1" ? lazy(() => import("./demo/DemoBanner")) : () => null;
@@ -45,6 +46,7 @@ function render() {
                   <Route path="booking" element={<Booking />} />
                   <Route path="gallery" element={<Gallery />} />
                   <Route path="member" element={<Member />} />
+                  <Route path="offers" element={<Offers />} />
                   <Route path="*" element={<NotFound />} />
                 </Route>
               </Routes>

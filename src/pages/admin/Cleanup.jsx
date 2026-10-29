@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { errMsg, supabase } from "../../lib/supabase";
 import { addDays, twDate } from "../../lib/utils";
-import { deleteAuditLogs, deleteBookings, deleteCustomers, deleteNotifications, deleteOrders, findIds } from "../../lib/records";
+import { deleteAuditLogs, deleteBookings, deleteCustomers, deleteNotifications, deleteOrders, deleteRows, findIds } from "../../lib/records";
 import { Confirm, Spinner, useToast } from "../../components/ui";
 
 const ago = (days) => new Date(Date.now() - days * 86400000).toISOString();
@@ -40,6 +40,12 @@ const RULES = [
     desc: (d) => `${d} 天以前的修改／刪除紀錄。這是查帳依據，建議保留至少一年。`,
     find: async (d) => findIds("audit_logs", (q) => q.lt("created_at", ago(d))),
     remove: deleteAuditLogs,
+  },
+  {
+    key: "ended_promotions", title: "已結束的行銷活動", days: 90,
+    desc: (d) => `結束時間在 ${d} 天以前的橫幅、公告與優惠活動。已用代碼成立的預約不受影響。`,
+    find: async (d) => findIds("promotions", (q) => q.lt("end_at", ago(d))),
+    remove: (ids) => deleteRows("promotions", ids),
   },
   {
     key: "empty_customers", title: "沒有任何預約的客戶", days: 180,

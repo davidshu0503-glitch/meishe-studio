@@ -41,7 +41,7 @@ function Calendar({ month, setMonth, min, max, selected, onSelect, isDisabled, i
 
 export default function Booking() {
   useTitle("線上預約");
-  const { services, booking: cfg, online } = useSite();
+  const { services, booking: cfg, online, promotions } = useSite();
   const { customer, user } = useAuth();
   const [params] = useSearchParams();
   const bookable = services.filter((s) => s.bookable && s.tier !== "hidden");
@@ -57,6 +57,17 @@ export default function Booking() {
     contactMethod: "email", email: "", lineId: "", note: "",
   });
   const [errors, setErrors] = useState({});
+  // 優惠代碼：從活動連結帶入（?promo=CODE），也可以手動輸入；送出時寫進備註讓工作室看到
+  const [promoCode, setPromoCode] = useState((params.get("promo") || "").toUpperCase());
+  const [promoInput, setPromoInput] = useState("");
+  const [promoErr, setPromoErr] = useState("");
+  const findPromo = (code) => promotions.find((p) => p.code && p.code.toUpperCase() === String(code || "").trim().toUpperCase());
+  const promo = findPromo(promoCode);
+  const applyCode = () => {
+    if (findPromo(promoInput)) { setPromoCode(promoInput.trim().toUpperCase()); setPromoInput(""); setPromoErr(""); }
+    else setPromoErr("查無此優惠代碼，或活動已結束");
+  };
+  const promoTag = promo ? `【優惠 ${promo.code}｜${promo.title}】` : "";
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [done, setDone] = useState(null);
@@ -104,7 +115,7 @@ export default function Booking() {
     const { data, error } = await supabase.rpc("create_booking", {
       p_service_id: form.serviceId, p_date: form.date, p_time: form.time, p_name: form.name.trim(), p_phone: form.phone.trim(),
       p_contact_method: form.contactMethod, p_email: form.contactMethod === "email" ? form.email.trim() : (form.email.trim() || null),
-      p_line_id: form.contactMethod === "line" ? form.lineId.trim() : null, p_note: form.note.trim(),
+      p_line_id: form.contactMethod === "line" ? form.lineId.trim() : null, p_note: [promoTag, form.note.trim()].filter(Boolean).join("\n").slice(0, 500),
     });
     setSubmitting(false);
     if (error) {
@@ -173,6 +184,9 @@ export default function Booking() {
 
           <div className="booking-layout">
             <div className="card">
+              {promo && step < 4 && (
+                <div className="promo-applied"><span className="promo-code">優惠 <b>{promo.code}</b></span><span>{promo.title}{promo.subtitle && <span className="small muted">　{promo.subtitle}</span>}</span></div>
+              )}
               {step === 1 && (
                 <>
                   <h3 className="title-md mb-2">選擇服務項目</h3>
@@ -233,7 +247,14 @@ export default function Booking() {
                         <Field label="Email（選填，接收通知信）"><input className="input" type="email" value={form.email} maxLength={120} onChange={(e) => set("email", e.target.value)} /></Field>
                       </>
                     )}
-                    <Field label="備註" full hint="拍攝需求、人數、想要的風格…"><textarea className="textarea" value={form.note} maxLength={500} onChange={(e) => set("note", e.target.value)} /></Field>
+                    <Field label="備註" full hint="拍攝需求、人數、想要的風格…"><textarea className="textarea" value={form.note} maxLength={promo ? 440 : 500} onChange={(e) => set("note", e.target.value)} /></Field>
+                    <Field label="優惠代碼（選填）" full error={promoErr}>
+                      {promo ? (
+                        <div className="flex flex-wrap small"><span className="promo-code">已套用 <b>{promo.code}</b></span>{promo.title}<button type="button" className="btn-link" onClick={() => setPromoCode("")}>移除</button></div>
+                      ) : (
+                        <div className="flex"><input className="input" value={promoInput} maxLength={30} placeholder="有優惠代碼請輸入" onChange={(e) => setPromoInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && applyCode()} /><button type="button" className="btn btn-ghost btn-sm" disabled={!promoInput.trim()} onClick={applyCode}>套用</button></div>
+                      )}
+                    </Field>
                   </div>
                   <div className="flex between mt-3">
                     <button className="btn btn-ghost btn-sm" onClick={() => setStep(2)}>上一步</button>
@@ -251,6 +272,7 @@ export default function Booking() {
                     <dt className="muted">姓名</dt><dd style={{ margin: 0 }}>{form.name}</dd>
                     <dt className="muted">電話</dt><dd style={{ margin: 0 }}>{form.phone}</dd>
                     <dt className="muted">{form.contactMethod === "email" ? "Email" : "LINE ID"}</dt><dd style={{ margin: 0 }}>{form.contactMethod === "email" ? form.email : form.lineId}</dd>
+                    {promo && <><dt className="muted">優惠</dt><dd style={{ margin: 0 }}>{promo.title}（代碼 {promo.code}）<div className="small muted">優惠內容以工作室確認為準</div></dd></>}
                     {form.note && <><dt className="muted">備註</dt><dd style={{ margin: 0, whiteSpace: "pre-line" }}>{form.note}</dd></>}
                   </dl>
                   {cfg.notice && <p className="small muted mt-2">{cfg.notice}</p>}

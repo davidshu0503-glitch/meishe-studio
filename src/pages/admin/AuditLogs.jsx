@@ -4,7 +4,7 @@ import { fmtDateTime } from "../../lib/utils";
 import { BulkBar, CheckAll, CheckCell, Confirm, Modal, Spinner, useSelection, useToast } from "../../components/ui";
 import { deleteAuditLogs } from "../../lib/records";
 
-const ENTITY = { customers: "客戶", bookings: "預約", orders: "訂單", services: "服務", portfolio: "作品", style_sets: "一拍多風格", settings: "網站設定", categories: "分類", blocked_dates: "公休日" };
+const ENTITY = { customers: "客戶", bookings: "預約", orders: "訂單", services: "服務", portfolio: "作品", style_sets: "一拍多風格", promotions: "行銷活動", settings: "網站設定", categories: "分類", blocked_dates: "公休日" };
 const ACTION = { update: "修改", delete: "刪除", insert: "新增", rejected: "被拒絕" };
 const SKIP = new Set(["updated_at", "created_at", "phone_norm", "email_norm"]);
 

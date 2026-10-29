@@ -627,3 +627,91 @@ a.chip:hover { border-color: var(--ink); }
   .set-card .cap { font-size: 13.5px; padding: 30px 10px 10px; letter-spacing: .06em; }
   .set-count { font-size: 11.5px; top: 8px; left: 8px; }
 }
+
+/* =====================================================================
+   行銷管理：公告列／首頁橫幅／優惠活動／彈出視窗（v4 新增）
+   ===================================================================== */
+:root { --admin-h: 0px; --bar-h: 0px; }
+html.has-admin-strip { --admin-h: 34px; }
+html.has-promo-bar { --bar-h: 40px; }
+html.has-promo-bar body { padding-top: var(--bar-h); }
+.header { top: calc(var(--admin-h) + var(--bar-h)); }
+@media (max-width: 1040px) { .nav { height: calc(100dvh - var(--header-h) - var(--bar-h) - var(--admin-h)); } }
+.promo-bar { position: fixed; top: var(--admin-h); left: 0; right: 0; height: var(--bar-h); z-index: 52; background: var(--accent); color: #fff; display: flex; align-items: center; font-size: 14.5px; letter-spacing: .06em; }
+.promo-bar-link { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 0 48px 0 16px; height: 100%; white-space: nowrap; overflow: hidden; }
+.promo-bar-text { overflow: hidden; text-overflow: ellipsis; }
+.promo-bar-text small { opacity: .85; margin-left: 10px; font-size: 13.5px; }
+.promo-bar-cta { text-decoration: underline; text-underline-offset: 3px; flex: none; }
+.promo-bar .promo-badge { background: #fff; color: var(--accent); flex: none; }
+.promo-bar-x { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: 0; color: #fff; font-size: 22px; line-height: 1; padding: 6px 10px; opacity: .85; }
+@media (max-width: 640px) { .promo-bar-text small, .promo-bar-cta { display: none; } .promo-bar { font-size: 13.5px; } }
+
+.promo-badge { display: inline-block; background: var(--accent); color: #fff; font-size: 12.5px; letter-spacing: .12em; padding: 2px 10px; border-radius: 20px; white-space: nowrap; }
+.promo-code { display: inline-flex; gap: 6px; align-items: center; font-size: 13.5px; letter-spacing: .08em; color: var(--ink-2); border: 1px dashed var(--accent); padding: 3px 10px; border-radius: 4px; background: var(--accent-soft); }
+.promo-code b { font-family: ui-monospace, Menlo, monospace; color: var(--accent); letter-spacing: .1em; }
+
+/* 首頁橫幅（輪播裡的活動頁） */
+.hero-slide.is-promo::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(0,0,0,.55), rgba(0,0,0,.1) 70%); }
+.hero-promo { position: absolute; z-index: 3; left: max(24px, 6vw); bottom: 110px; max-width: 560px; color: #fff; display: grid; gap: 12px; justify-items: start; text-align: left; }
+.hero-promo h2 { font-size: clamp(28px, 4.4vw, 52px); letter-spacing: .1em; text-shadow: 0 2px 24px rgba(0,0,0,.3); }
+.hero-promo p { font-size: clamp(15px, 1.6vw, 18px); letter-spacing: .16em; opacity: .92; }
+.hero.promo-on .hero-content { opacity: 0; pointer-events: none; }
+.hero-content { transition: opacity .6s; }
+@media (max-width: 640px) { .hero-promo { left: 20px; right: 20px; bottom: 90px; } }
+
+/* 首頁限時優惠帶 */
+.offer-strip { background: var(--accent-soft); border-bottom: 1px solid var(--line); }
+.offer-strip .wrap { display: grid; gap: 18px; }
+.offer-strip-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.offer-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+
+/* 優惠活動卡片 */
+.offer-card { display: grid; grid-template-columns: 132px minmax(0, 1fr); background: #fff; border: 1px solid var(--line); min-width: 0; }
+.offer-card:not(:has(.offer-card-img)) { grid-template-columns: 1fr; }
+.offer-card-img { position: relative; overflow: hidden; background: var(--line-2); }
+.offer-card-img img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
+.offer-card-img .promo-badge { position: absolute; top: 8px; left: 8px; }
+.offer-card-body { padding: 16px 18px; display: grid; gap: 8px; align-content: start; justify-items: start; }
+.offer-card h3 { font-size: 18px; letter-spacing: .1em; }
+.offer-sub { font-size: 14.5px; color: var(--ink-2); line-height: 1.8; }
+.offer-body { font-size: 15px; color: var(--ink-2); line-height: 2; white-space: pre-line; }
+.offer-meta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.offer-card.full { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
+.offer-card.full .offer-card-img { min-height: 320px; }
+.offer-card.full .offer-card-body { padding: 28px; gap: 12px; }
+.offer-card.full h3 { font-size: 24px; }
+.offers-list { display: grid; gap: 22px; }
+@media (max-width: 760px) { .offer-card.full { grid-template-columns: 1fr; } .offer-card.full .offer-card-img { min-height: 0; aspect-ratio: 4/3; } }
+@media (max-width: 420px) { .offer-card { grid-template-columns: 96px minmax(0, 1fr); } }
+
+/* 服務卡上的優惠標記 */
+.svc .svc-offer { display: grid; gap: 4px; padding: 10px 12px; background: var(--accent-soft); border-left: 2px solid var(--accent); font-size: 14px; color: var(--ink-2); }
+.svc .svc-offer b { color: var(--accent); }
+.nav .nav-offer { color: var(--accent); }
+.header:not(.solid) .nav .nav-offer { color: #F2C9A8; }
+
+/* 預約頁套用優惠 */
+.promo-applied { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 12px 16px; border: 1px dashed var(--accent); background: var(--accent-soft); border-radius: 4px; margin-bottom: 20px; font-size: 15px; }
+
+/* 彈出視窗 */
+.promo-pop-bg { z-index: 160; }
+.promo-pop { position: relative; width: min(440px, calc(100vw - 32px)); background: var(--paper); border-radius: 8px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.35); animation: fade .3s; }
+.promo-pop img { width: 100%; aspect-ratio: 4/3; object-fit: cover; }
+.promo-pop-body { padding: 22px 24px 24px; display: grid; gap: 10px; justify-items: center; text-align: center; }
+.promo-pop-body h3 { font-size: 22px; letter-spacing: .1em; }
+.promo-pop-body p { color: var(--ink-2); line-height: 1.9; }
+.promo-pop-x { position: absolute; top: 8px; right: 8px; z-index: 2; width: 34px; height: 34px; border-radius: 50%; border: 0; background: rgba(0,0,0,.55); color: #fff; font-size: 20px; line-height: 1; }
+
+/* 後台：行銷管理 */
+.promo-row { display: grid; grid-template-columns: 28px 84px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 12px 14px; background: #fff; border: 1px solid var(--line); border-radius: 6px; }
+.promo-row.sel { background: var(--accent-soft); }
+.promo-row img, .promo-row .ph { width: 84px; height: 56px; object-fit: cover; border-radius: 3px; background: var(--line-2); display: grid; place-items: center; font-size: 12px; color: var(--muted); }
+.promo-row .meta { display: flex; gap: 8px 14px; flex-wrap: wrap; font-size: 13.5px; color: var(--ink-3); margin-top: 3px; }
+.promo-row .acts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.switch { position: relative; width: 44px; height: 24px; border-radius: 12px; border: 0; background: var(--line); padding: 0; flex: none; transition: background .2s; }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+.switch.on { background: var(--ok); }
+.switch.on::after { transform: translateX(20px); }
+.promo-preview { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--paper-2); padding: 12px; }
+@media (max-width: 760px) { .promo-row { grid-template-columns: 28px 64px minmax(0, 1fr); } .promo-row img, .promo-row .ph { width: 64px; height: 48px; } .promo-row .acts { grid-column: 1 / -1; justify-content: flex-start; } }
+.admin-side .count.live { background: var(--ok); }

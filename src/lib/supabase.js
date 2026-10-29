@@ -52,6 +52,7 @@ export function errMsg(error) {
   if (/bookings_slot_uq/i.test(m)) return "此時段已有其他預約";
   if (/Failed to fetch|NetworkError/i.test(m)) return "網路連線失敗，請稍後再試";
   if (/row-level security/i.test(m)) return "沒有權限執行此操作";
+  if (/promotions/i.test(m) && /does not exist|not find|schema cache/i.test(m)) return "資料庫尚未升級：請先在 Supabase 執行 supabase/04-marketing.sql";
   if (/style_sets|column.*(tier|name_en)|'(tier|name_en|description)' column/i.test(m)) return "資料庫尚未升級：請先在 Supabase 執行 supabase/03-upgrade.sql";
   return m;
 }
