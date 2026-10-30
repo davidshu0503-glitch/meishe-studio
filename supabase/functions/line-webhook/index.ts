@@ -7,6 +7,7 @@
 //   • 客戶傳「綁定 預約編號 電話」→ 自動綁定 LINE，之後預約/選片/交件通知都會推播到 LINE
 //     （網站預約成功頁有「一鍵傳送綁定訊息」按鈕，訊息會自動填好）
 //   • 綁定成功後，會把綁定前因「尚未綁定」而略過的 LINE 通知（14 天內）重新寄出
+//   • 工作室人員傳「工作室綁定 123456」（後台通知設定產生的綁定碼）→ 自動加入工作室通知名單
 //   • 傳「我的ID」→ 回覆自己的 LINE userId（工作室設定 LINE_ADMIN_USER_IDS 用）
 //
 //  需要的環境變數：LINE_CHANNEL_SECRET、LINE_CHANNEL_ACCESS_TOKEN、SITE_URL
@@ -72,6 +73,27 @@ Deno.serve(async (req) => {
 
     if (/^(我的\s*id|my\s*id|userid)$/i.test(text)) {
       await reply(ev.replyToken, `您的 LINE userId：\n${userId}`);
+      continue;
+    }
+
+    // 工作室人員綁定：後台「通知設定 → 綁定我的 LINE」產生 6 位數綁定碼（30 分鐘有效、用一次就失效）
+    const adminCode = text.match(/^工作室綁定\s*(\d{6})$/)?.[1];
+    if (adminCode) {
+      const { data: nt } = await db.from("settings").select("value").eq("key", "notify").maybeSingle();
+      const notify: any = nt?.value || {};
+      const valid = notify.admin_bind_code && notify.admin_bind_code === adminCode
+        && (!notify.admin_bind_expires || new Date(notify.admin_bind_expires).getTime() > Date.now());
+      if (!valid) {
+        await reply(ev.replyToken, "綁定碼錯誤或已過期，請回到網站後台「通知設定」重新產生綁定碼。");
+        continue;
+      }
+      const ids = String(notify.line_admin_ids || "").split(",").map((s) => s.trim()).filter(Boolean);
+      if (!ids.includes(userId)) ids.push(userId);
+      const next = { ...notify, line_admin_ids: ids.join(","), admin_bind_code: "", admin_bind_expires: null };
+      const { error } = await db.from("settings").update({ value: next }).eq("key", "notify");
+      await reply(ev.replyToken, error
+        ? "綁定失敗，請稍後再試。"
+        : `工作室 LINE 綁定成功 ✅\n之後有新預約、取消、客人選片完成，都會同時傳 LINE 和 Email 給您。\n（目前共 ${ids.length} 位工作室人員接收通知）`);
       continue;
     }
 

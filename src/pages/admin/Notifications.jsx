@@ -90,7 +90,7 @@ export default function Notifications() {
                 <tr key={n.id} className={`click ${selection.has(n.id) ? "sel" : ""}`} onClick={() => setDetail(n)} style={n.processed ? { opacity: 0.6 } : undefined}>
                   <CheckCell selection={selection} id={n.id} />
                   <td className="small">{fmtDateTime(n.created_at)}</td>
-                  <td>{EVENT_LABELS[n.event] || n.event}</td>
+                  <td>{EVENT_LABELS[n.event] || (n.event === "test" ? "測試通知" : n.event)}</td>
                   <td>{n.audience === "studio" ? "工作室" : "客戶"}</td>
                   <td>{n.channel === "email" ? "Email" : "LINE"}</td>
                   <td>{n.payload?.name}<div className="small muted">{n.order_id}</div></td>
@@ -107,7 +107,7 @@ export default function Notifications() {
       )}
       {delIds && <Confirm title={`刪除 ${delIds.length} 則通知紀錄？`} danger confirmText="確定刪除" message="只會刪除後台的通知紀錄，已寄出的 Email／LINE 不會收回。排隊中的通知刪除後就不會寄出。" onConfirm={doDelete} onCancel={() => setDelIds(null)} />}
       {detail && (
-        <Modal title={EVENT_LABELS[detail.event] || detail.event} onClose={() => setDetail(null)} actions={<>
+        <Modal title={EVENT_LABELS[detail.event] || (detail.event === "test" ? "測試通知" : detail.event)} onClose={() => setDetail(null)} actions={<>
           {detail.order_id && <Link className="btn btn-ghost btn-sm" to={`/admin/orders/${detail.order_id}`}>查看訂單</Link>}
           {!detail.processed && <button className="btn btn-sm" onClick={() => { mark([detail.id]); setDetail(null); }}>標記已處理</button>}
         </>}>

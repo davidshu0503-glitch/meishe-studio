@@ -30,6 +30,7 @@ const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }> = {
   selection_done: { subject: "【{{studio_name}}】已收到選片", body: "{{name}} 您好，已收到您選的 {{selected_count}} 張照片。" },
   retouch_started: { subject: "【{{studio_name}}】照片修圖中", body: "{{name}} 您好，您的照片已開始修圖。" },
   delivered: { subject: "【{{studio_name}}】照片已完成", body: "{{name}} 您好，精修照片已完成，請至 {{site_url}}/gallery?order={{order_id}} 下載。" },
+  test: { subject: "測試通知 {{time}}", body: "這是一則測試通知。收到這則訊息，代表客人預約後，工作室會同時收到 LINE 與 Email 通知。\n\n後台：{{site_url}}/admin" },
   shoot_reminder: { subject: "【{{studio_name}}】明天拍攝提醒", body: "{{name}} 您好，提醒您明天 {{date}} {{time}} 有拍攝預約。" },
 };
 
@@ -78,8 +79,9 @@ Deno.serve(async (req) => {
   const notify = settings.notify || {};
   const templates = { ...DEFAULT_TEMPLATES, ...(settings.templates || {}) };
   const siteUrl = (Deno.env.get("SITE_URL") || studio.site_url || "").replace(/\/$/, "");
-  const adminLineIds = (Deno.env.get("LINE_ADMIN_USER_IDS") || notify.line_admin_ids || "")
-    .split(",").map((s: string) => s.trim()).filter(Boolean);
+  // 工作室 LINE 收件人：後台「通知設定」綁定的名單 + Secrets 的 LINE_ADMIN_USER_IDS（兩邊合併、去重）
+  const adminLineIds = [...new Set(`${Deno.env.get("LINE_ADMIN_USER_IDS") || ""},${notify.line_admin_ids || ""}`
+    .split(",").map((s: string) => s.trim()).filter(Boolean))];
 
   const { data: claimed, error } = await db.rpc("claim_notifications", { p_limit: 30 });
   if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
@@ -120,8 +122,16 @@ Deno.serve(async (req) => {
       } else {
         if (n.audience === "studio") {
           recipient = adminLineIds.join(",");
-          if (!adminLineIds.length) result = { skipped: "尚未設定工作室 LINE userId（LINE_ADMIN_USER_IDS）" };
-          else { for (const id of adminLineIds) result = await sendLine(id, `${subject}\n\n${body}`); }
+          if (!adminLineIds.length) result = { skipped: "尚未綁定工作室 LINE（後台 → 網站內容 → 通知設定 → 綁定我的 LINE）" };
+          else {
+            // 每位工作室人員都送一次；部分失敗時記錄是哪幾位
+            const errs: string[] = [];
+            for (const id of adminLineIds) {
+              try { result = await sendLine(id, `${subject}\n\n${body}`); } catch (e) { errs.push(`${id.slice(0, 6)}…：${(e as Error).message}`); }
+            }
+            if (errs.length === adminLineIds.length) throw new Error(errs.join("；"));
+            if (errs.length) err = `部分失敗：${errs.join("；")}`;
+          }
         } else {
           recipient = customer?.line_user_id || "";
           result = recipient ? await sendLine(recipient, `${subject}\n\n${body}`) : { skipped: "客戶尚未綁定 LINE 官方帳號" };

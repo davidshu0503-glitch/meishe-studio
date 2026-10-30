@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { errMsg, imgUrl, supabase } from "../../lib/supabase";
+import StudioNotify from "./StudioNotify";
 import { useSite } from "../../lib/site";
 import { EVENT_LABELS, priceNote, priceText, resizeImage, TIER_KEYS, TIER_ORDER, TIERS, tierOf, uid, WEEKDAYS } from "../../lib/utils";
 import { BulkBar, Confirm, Field, Modal, Spinner, useSelection, useToast } from "../../components/ui";
@@ -567,7 +568,11 @@ function NotifyTab() {
   const label = (k) => (k.startsWith("studio_") ? `［給工作室］${EVENT_LABELS[k.slice(7)]}` : EVENT_LABELS[k]);
   const cur = tpl[key] || { subject: "", body: "" };
   const save = async () => {
-    const [a, b] = await Promise.all([saveSetting("notify", notify, false), saveSetting("templates", tpl, false)]);
+    // LINE 綁定名單由「綁定我的 LINE」另外管理：儲存時以資料庫最新值為準，避免蓋掉剛綁好的人
+    const { data: cur } = await supabase.from("settings").select("value").eq("key", "notify").maybeSingle();
+    const latest = cur?.value || {};
+    const merged = { ...notify, line_admin_ids: latest.line_admin_ids || "", admin_bind_code: latest.admin_bind_code || "", admin_bind_expires: latest.admin_bind_expires || null };
+    const [a, b] = await Promise.all([saveSetting("notify", merged, false), saveSetting("templates", tpl, false)]);
     if (a.error || b.error) return toast(errMsg(a.error || b.error), "err");
     toast("通知設定已儲存");
   };
@@ -582,9 +587,10 @@ function NotifyTab() {
         <button className="btn mt-2" onClick={save}>儲存</button>
       </div>
       <div className="panel">
-        <h3>通知開關與收件人</h3>
-        <Field label="工作室收件 Email（新預約、取消、選片完成）"><input className="input" value={notify.studio_email || ""} onChange={(e) => setNotify({ ...notify, studio_email: e.target.value })} /></Field>
-        <Field label="工作室 LINE userId（多個用逗號分隔）" hint="對官方帳號傳「我的ID」即可取得；也可在 Supabase Secrets 設定 LINE_ADMIN_USER_IDS"><input className="input" value={notify.line_admin_ids || ""} onChange={(e) => setNotify({ ...notify, line_admin_ids: e.target.value })} /></Field>
+        <h3>工作室收件人（新預約會同時通知 LINE 與 Email）</h3>
+        <Field label="工作室收件 Email（新預約、取消、選片完成）"><input className="input" type="email" value={notify.studio_email || ""} onChange={(e) => setNotify({ ...notify, studio_email: e.target.value })} /></Field>
+        <StudioNotify email={notify.studio_email} onSaveFirst={save} />
+        <h3 className="mt-3">通知開關</h3>
         <div className="list mt-2">
           {Object.entries(EVENT_LABELS).map(([k, v]) => (
             <label key={k} className="flex small"><input type="checkbox" checked={notify.enabled?.[k] !== false} onChange={(e) => setNotify({ ...notify, enabled: { ...(notify.enabled || {}), [k]: e.target.checked } })} />{v}</label>

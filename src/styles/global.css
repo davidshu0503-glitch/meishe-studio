@@ -737,6 +737,9 @@ html.has-promo-bar body { padding-top: var(--bar-h); }
 .line-qr { display: grid; justify-items: center; gap: 6px; text-align: center; }
 .line-qr img { border-radius: 4px; background: #fff; padding: 4px; border: 1px solid #CDEBD3; }
 @media (max-width: 700px) { .line-qr { display: none; } .line-bind { grid-template-columns: 1fr; } }
+.studio-notify { display: grid; gap: 12px; }
+.studio-notify .line-bind { grid-template-columns: 1fr; }
+.studio-notify .line-qr { justify-items: start; grid-auto-flow: column; align-items: center; justify-content: start; }
 
 /* 預付訂金（v6） */
 .deposit-box { text-align: left; border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 18px 20px; display: grid; gap: 8px; margin: 8px 0 4px; }

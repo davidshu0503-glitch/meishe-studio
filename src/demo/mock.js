@@ -285,6 +285,17 @@ function updateRow(table, row, patch) {
   beforeUpdate(table, old, next);
   const idx = T[table].indexOf(row);
   T[table][idx] = next;
+  // 示範：模擬工作室人員用 LINE 傳出綁定碼（正式版由 line-webhook 處理）
+  if (table === "settings" && next.key === "notify" && next.value?.admin_bind_code && next.value.admin_bind_code !== old.value?.admin_bind_code) {
+    const code = next.value.admin_bind_code;
+    setTimeout(() => {
+      const r = T.settings.find((x) => x.key === "notify");
+      if (r?.value?.admin_bind_code !== code) return;
+      const ids = String(r.value.line_admin_ids || "").split(",").filter(Boolean);
+      ids.push("Udemo" + code + "a1b2c3d4e5f6");
+      r.value = { ...r.value, line_admin_ids: ids.join(","), admin_bind_code: "", admin_bind_expires: null };
+    }, 6000);
+  }
   try { checkUnique(table, next); } catch (e) { T[table][idx] = row; throw e; }
   audit(table, "update", old, next);
   afterUpdate(table, old, next);
@@ -317,6 +328,13 @@ function galleryGet(orderId, phone) {
   };
 }
 const RPC = {
+  admin_send_test_notification: () => {
+    if (!isAdmin()) throw new Error("只有管理員可以傳送測試通知");
+    const ref = "test-" + Date.now();
+    const t = new Date(); const time = `${String(t.getMonth() + 1).padStart(2, "0")}/${String(t.getDate()).padStart(2, "0")} ${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`;
+    for (const channel of ["email", "line"]) T.notifications.push({ id: seq++, event: "test", ref_id: ref, channel, audience: "studio", customer_id: null, order_id: null, booking_id: null, payload: { time }, recipient: "", subject: "", body: "", status: "queued", error: "", attempts: 0, processed: false, created_at: now(), sent_at: null });
+    return ref;
+  },
   promo_quote: ({ p_code, p_service_id }) => {
     const c = String(p_code || "").trim().toUpperCase();
     if (!c) return { ok: false, error: "請輸入優惠代碼" };
@@ -419,7 +437,7 @@ const RPC = {
 /* ---------------- 通知寄送（示範：不實際寄出） ---------------- */
 function sendNotifications() {
   const s = Object.fromEntries(T.settings.map((x) => [x.key, x.value]));
-  const tpls = s.templates || {};
+  const tpls = { test: { subject: "測試通知 {{time}}", body: "這是一則測試通知。收到這則訊息，代表客人預約後，工作室會同時收到 LINE 與 Email 通知。" }, ...(s.templates || {}) };
   const out = { processed: 0, sent: 0, skipped: 0, failed: 0 };
   const render = (t, v) => (t || "").replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k) => (v[k] ?? ""));
   for (const n of T.notifications.filter((x) => x.status === "queued")) {
@@ -432,7 +450,7 @@ function sendNotifications() {
     if (n.channel === "email") n.recipient = n.audience === "studio" ? s.notify?.studio_email || "" : b?.email || c?.email || "";
     else n.recipient = n.audience === "studio" ? s.notify?.line_admin_ids || "" : c?.line_user_id || "";
     if (n.recipient) { n.status = "sent"; n.error = "示範模式：未實際寄出"; n.sent_at = now(); out.sent++; }
-    else { n.status = "skipped"; n.error = n.channel === "line" ? (n.audience === "studio" ? "尚未設定工作室 LINE userId" : "客戶尚未綁定 LINE 官方帳號") : "沒有收件 Email"; out.skipped++; }
+    else { n.status = "skipped"; n.error = n.channel === "line" ? (n.audience === "studio" ? "尚未綁定工作室 LINE（後台 → 網站內容 → 通知設定 → 綁定我的 LINE）" : "客戶尚未綁定 LINE 官方帳號") : "沒有收件 Email"; out.skipped++; }
   }
   return out;
 }

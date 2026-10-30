@@ -33,7 +33,7 @@
 },
 "studio_booking_created": {
 "subject": "🔔 新預約｜{{date}} {{time}} {{service}}",
-"body": "新預約進來了！\n\n客戶：{{name}}（{{phone}}）\n服務：{{service}}\n時間：{{date}} {{time}}\n預約編號：{{booking_id}}\n訂單編號：{{order_id}}\n金額：NT$ {{amount}}\n備註：{{note}}\n\n後台：{{site_url}}/admin"
+"body": "新預約進來了！\n\n客戶：{{name}}（{{phone}}）\n服務：{{service}}\n時間：{{date}} {{time}}\n預約編號：{{booking_id}}\n訂單編號：{{order_id}}\n金額：NT$ {{amount}}\n訂金：NT$ {{deposit}}（期限 {{deposit_due}}）\n備註：{{note}}\n\n後台：{{site_url}}/admin"
 },
 "studio_booking_cancelled": {
 "subject": "❌ 預約取消｜{{date}} {{time}} {{name}}",
