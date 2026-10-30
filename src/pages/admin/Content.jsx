@@ -67,7 +67,7 @@ function StudioTab() {
     if (error) return toast(errMsg(error), "err");
     toast("工作室資訊已更新"); reload();
   };
-  const fields = [["name", "工作室名稱"], ["name_en", "英文名稱"], ["tagline", "標語（英文）"], ["hero_title", "首頁主標題（留空則使用每張輪播的標題）"], ["slogan", "中文標語"], ["phone", "電話"], ["email", "公開 Email"], ["address", "地址"], ["hours", "營業時間"], ["line_url", "LINE 官方帳號網址"], ["instagram", "Instagram 網址"], ["facebook", "Facebook 網址"], ["site_url", "網站網址（通知信連結用）"], ["watermark", "作品浮水印文字"], ["map_embed", "Google 地圖嵌入網址（選填）"]];
+  const fields = [["name", "工作室名稱"], ["name_en", "英文名稱"], ["tagline", "標語（英文）"], ["hero_title", "首頁主標題（留空則使用每張輪播的標題）"], ["slogan", "中文標語"], ["phone", "電話"], ["email", "公開 Email"], ["address", "地址"], ["hours", "營業時間"], ["line_oa_id", "LINE 官方帳號 ID（@ 開頭，例如 @123abcde；客人一鍵綁定 LINE 通知用）"], ["line_url", "LINE 官方帳號網址"], ["instagram", "Instagram 網址"], ["facebook", "Facebook 網址"], ["site_url", "網站網址（通知信連結用）"], ["watermark", "作品浮水印文字"], ["map_embed", "Google 地圖嵌入網址（選填）"]];
   return (
     <div className="panel">
       <div className="form-grid">
@@ -489,7 +489,12 @@ function BookingTab() {
   const save = async () => {
     const slots = f.slotsText.split(/[,，\s]+/).map((s) => s.trim()).filter((s) => /^\d{1,2}:\d{2}$/.test(s)).map((s) => s.padStart(5, "0")).sort();
     if (!slots.length) return toast("請至少設定一個時段", "err");
-    const value = { slots, closed_weekdays: f.closed_weekdays || [], max_days_ahead: Number(f.max_days_ahead) || 90, notice: f.notice || "", payment_info: f.payment_info || "" };
+    const dep = f.deposit || {};
+    const dv = Math.round(Number(dep.value) || 0);
+    if (dep.type === "percent" && (dv < 1 || dv > 100)) return toast("訂金比例請填 1–100", "err");
+    if (dep.type === "amount" && dv < 1) return toast("請填寫訂金金額", "err");
+    const value = { slots, closed_weekdays: f.closed_weekdays || [], max_days_ahead: Number(f.max_days_ahead) || 90, notice: f.notice || "", payment_info: f.payment_info || "",
+      deposit: { type: dep.type || "none", value: dep.type === "none" ? 0 : dv, days: Math.max(0, Math.round(Number(dep.days ?? 3))), policy: dep.policy || "" } };
     const { error } = await saveSetting("booking", value, true);
     if (error) return toast(errMsg(error), "err");
     toast("預約設定已更新"); reload();
@@ -504,7 +509,28 @@ function BookingTab() {
           <Field label="每週公休日"><div className="flex flex-wrap">{WEEKDAYS.map((w, d) => <button key={d} className={`btn btn-sm ${f.closed_weekdays?.includes(d) ? "" : "btn-ghost"}`} onClick={() => toggleWd(d)}>週{w}</button>)}</div></Field>
           <Field label="最多可預約幾天後"><input className="input" type="number" value={f.max_days_ahead} onChange={(e) => setF({ ...f, max_days_ahead: e.target.value })} /></Field>
           <Field label="預約須知（顯示在預約頁）"><textarea className="textarea" value={f.notice} onChange={(e) => setF({ ...f, notice: e.target.value })} /></Field>
-          <Field label="付款資訊（預約成功頁顯示，如匯款帳號）" hint="留空則不顯示"><textarea className="textarea" value={f.payment_info || ""} onChange={(e) => setF({ ...f, payment_info: e.target.value })} /></Field>
+        </div>
+        <h3 className="mt-3">預付訂金</h3>
+        <div className="form-grid" style={{ gridTemplateColumns: "1fr" }}>
+          <Field label="訂金方式" hint="新的預約會自動算出訂金與付款期限，寫進訂單與預約成功通知">
+            <div className="seg" style={{ flexWrap: "wrap" }}>
+              {[["percent", "按比例"], ["amount", "固定金額"], ["none", "不收訂金"]].map(([k, l]) => (
+                <button key={k} type="button" className={(f.deposit?.type || "none") === k ? "on" : ""} onClick={() => setF({ ...f, deposit: { days: 3, ...(f.deposit || {}), type: k, value: k === (f.deposit?.type) ? f.deposit.value : k === "percent" ? 30 : k === "amount" ? 1000 : 0 } })}>{l}</button>
+              ))}
+            </div>
+          </Field>
+          {f.deposit?.type && f.deposit.type !== "none" && (
+            <div className="form-grid">
+              <Field label={f.deposit.type === "percent" ? "訂金比例（%）" : "訂金金額（元）"} hint={f.deposit.type === "percent" ? "例如 30＝收總金額的 30%" : "訂金不會超過訂單金額"}>
+                <input className="input" type="number" min="1" value={f.deposit.value ?? ""} onChange={(e) => setF({ ...f, deposit: { ...f.deposit, value: e.target.value } })} />
+              </Field>
+              <Field label="付款期限（預約後幾天內）" hint="最晚會到拍攝前一天">
+                <input className="input" type="number" min="0" value={f.deposit.days ?? 3} onChange={(e) => setF({ ...f, deposit: { ...f.deposit, days: e.target.value } })} />
+              </Field>
+              <Field label="訂金說明（選填，例如改期與退款規則）" full><textarea className="textarea" style={{ minHeight: 70 }} value={f.deposit.policy || ""} onChange={(e) => setF({ ...f, deposit: { ...f.deposit, policy: e.target.value } })} /></Field>
+            </div>
+          )}
+          <Field label={f.deposit?.type && f.deposit.type !== "none" ? "訂金付款方式（匯款帳號等，顯示在預約成功頁與通知）" : "付款資訊（預約成功頁顯示，如匯款帳號）"} hint="留空則不顯示"><textarea className="textarea" value={f.payment_info || ""} onChange={(e) => setF({ ...f, payment_info: e.target.value })} /></Field>
         </div>
         <button className="btn mt-2" onClick={save}>儲存</button>
       </div>
@@ -552,7 +578,7 @@ function NotifyTab() {
         <Field label="選擇通知"><select className="select" value={key} onChange={(e) => setKey(e.target.value)}>{keys.map((k) => <option key={k} value={k}>{label(k)}</option>)}</select></Field>
         <Field label="主旨"><input className="input" value={cur.subject} onChange={(e) => setTpl({ ...tpl, [key]: { ...cur, subject: e.target.value } })} /></Field>
         <Field label="內容"><textarea className="textarea" style={{ minHeight: 240 }} value={cur.body} onChange={(e) => setTpl({ ...tpl, [key]: { ...cur, body: e.target.value } })} /></Field>
-        <p className="small muted mt-1">可用變數：{"{{name}} {{phone}} {{booking_id}} {{order_id}} {{service}} {{date}} {{time}} {{amount}} {{note}} {{selected_count}} {{studio_name}} {{studio_phone}} {{site_url}}"}</p>
+        <p className="small muted mt-1">可用變數：{"{{name}} {{phone}} {{booking_id}} {{order_id}} {{service}} {{date}} {{time}} {{amount}} {{deposit}} {{deposit_due}} {{balance}} {{deposit_text}} {{payment_info}} {{note}} {{selected_count}} {{studio_name}} {{studio_phone}} {{site_url}}"}</p>
         <button className="btn mt-2" onClick={save}>儲存</button>
       </div>
       <div className="panel">

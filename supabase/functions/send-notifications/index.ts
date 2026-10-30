@@ -22,8 +22,9 @@ const cors = {
 };
 
 const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }> = {
-  booking_created: { subject: "【{{studio_name}}】預約成功 {{booking_id}}", body: "{{name}} 您好，\n\n您的預約已完成。\n預約編號：{{booking_id}}\n服務項目：{{service}}\n拍攝時間：{{date}} {{time}}\n\n{{studio_name}}" },
+  booking_created: { subject: "【{{studio_name}}】預約成功 {{booking_id}}", body: "{{name}} 您好，\n\n您的預約已完成。\n預約編號：{{booking_id}}\n服務項目：{{service}}\n拍攝時間：{{date}} {{time}}\n{{deposit_text}}\n{{studio_name}}" },
   booking_cancelled: { subject: "【{{studio_name}}】預約已取消", body: "{{name}} 您好，您 {{date}} {{time}} 的預約已取消。\n\n{{studio_name}}" },
+  deposit_received: { subject: "【{{studio_name}}】已收到訂金，預約已確認", body: "{{name}} 您好，已收到您的訂金 NT$ {{deposit}}，{{date}} {{time}} 的預約已確認。尾款 NT$ {{balance}} 於拍攝當天支付。\n\n{{studio_name}}" },
   payment_received: { subject: "【{{studio_name}}】已收到款項", body: "{{name}} 您好，已收到訂單 {{order_id}} 的款項，謝謝您！" },
   album_ready: { subject: "【{{studio_name}}】可以選片了", body: "{{name}} 您好，照片已上傳，請至 {{site_url}}/gallery?order={{order_id}} 選片。" },
   selection_done: { subject: "【{{studio_name}}】已收到選片", body: "{{name}} 您好，已收到您選的 {{selected_count}} 張照片。" },

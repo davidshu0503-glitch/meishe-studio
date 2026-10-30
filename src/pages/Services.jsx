@@ -1,7 +1,7 @@
-import { useEffect } from "react";
+import { Fragment, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useSite } from "../lib/site";
-import { priceNote, priceText, TIER_ORDER, TIERS } from "../lib/utils";
+import { depositLabel, priceNote, priceText, TIER_ORDER, TIERS } from "../lib/utils";
 import { PageHero, Reveal, useTitle } from "../components/ui";
 import StyleShowcase from "../components/StyleShowcase";
 import { PromoLink } from "../components/Promo";
@@ -10,7 +10,8 @@ import { money } from "../lib/utils";
 
 export default function Services() {
   useTitle("服務與價格");
-  const { services, studio, styleSets, promotions } = useSite();
+  const { services, studio, styleSets, promotions, booking: cfg } = useSite();
+  const dep = depositLabel(cfg);
   const offerFor = (id) => promotions.find((p) => p.kind === "offer" && (p.service_ids || []).includes(id));
   const { hash } = useLocation();
   useEffect(() => {
@@ -42,14 +43,8 @@ export default function Services() {
     </Reveal>
   );
 
-  const groups = TIER_ORDER.map((t) => [t, services.filter((s) => s.tier === t)]).filter(([, l]) => l.length);
-
-  return (
-    <>
-      <PageHero eyebrow="Services & Pricing" title="服務與價格" sub="拍一次，擁有多種藝術風格。所有方案皆含線上選片與雲端交件" />
-      <section className="section-tight">
-        <div className="wrap">
-          {styleSets.length > 0 && (
+  // 一拍多風格說明：放在「入門拍攝」之後，說明拍完還能加購哪些風格
+  const oneshotBox = styleSets.length > 0 ? (
             <div className="svc-oneshot">
               <div>
                 <div className="kicker">One Shoot · Many Styles</div>
@@ -58,15 +53,24 @@ export default function Services() {
                   先選一個<b>入門拍攝</b>方案，拍完選片時再決定要不要<b>加購風格</b>；最喜歡的那張，可以再做成<b>典藏掛畫</b>。不用一次決定全部，看到成果再加。
                 </p>
                 <ol className="mini-ladder">
-                  <li><a href="#entry">入門拍攝</a></li><li><a href="#addon">風格加購</a></li><li><a href="#main">典藏藝術肖像</a></li>
+                  <li><a href="#entry">入門拍攝</a></li><li><a href="#main">典藏藝術肖像</a></li><li><a href="#addon">風格加購</a></li>
                 </ol>
               </div>
               <StyleShowcase sets={styleSets.slice(0, 1)} watermark={studio.watermark} compact />
             </div>
-          )}
+  ) : null;
 
-          {groups.map(([t, list]) => (
-            <div key={t} id={t} className="svc-group">
+  const groups = TIER_ORDER.map((t) => [t, services.filter((s) => s.tier === t)]).filter(([, l]) => l.length);
+
+  return (
+    <>
+      <PageHero eyebrow="Services & Pricing" title="服務與價格" sub="拍一次，擁有多種藝術風格。所有方案皆含線上選片與雲端交件" />
+      <section className="section-tight">
+        <div className="wrap">
+          {groups.map(([t, list], gi) => (
+            <Fragment key={t}>
+            {gi === 1 && oneshotBox}
+            <div id={t} className="svc-group">
               <div className="sec-head" style={{ marginBottom: 32 }}>
                 <div className="kicker">{TIERS[t].en}</div>
                 <h2 className="title-md">{TIERS[t].label}</h2>
@@ -74,11 +78,14 @@ export default function Services() {
               </div>
               <div className="svc-grid">{list.map((s, k) => <Card key={s.id} s={s} k={k} />)}</div>
             </div>
+            </Fragment>
           ))}
+          {groups.length < 2 && oneshotBox}
 
           <div className="card mt-4 small muted" style={{ lineHeight: 2 }}>
             <b style={{ color: "var(--ink)" }}>預約須知</b><br />
             ・以上價格為新台幣含稅價，實際內容以與工作室確認為準。顯示「洽詢報價」的項目會依尺寸與風格報價。<br />
+            {dep && <>・<b style={{ color: "var(--ink)" }}>預付訂金制</b>：預約後請於 {Number(cfg.deposit?.days ?? 3)} 天內支付{dep}（最晚拍攝前一天），尾款於拍攝當天支付。<br /></>}
             ・風格加購與典藏掛畫可以在選片後再決定。<br />
             ・預約成功後會收到 Email／LINE 通知，拍攝前一天會再次提醒。<br />
             ・改期或取消請於拍攝前 2 天來電 {studio.phone}。

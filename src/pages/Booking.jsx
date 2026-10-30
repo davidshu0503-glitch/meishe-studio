@@ -3,9 +3,10 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useSite } from "../lib/site";
 import { useAuth } from "../lib/auth";
 import { errMsg, kickNotifications, supabase } from "../lib/supabase";
-import { addDays, fmtDate, money, normPhone, twDate, WEEKDAYS, weekday } from "../lib/utils";
+import { addDays, depositDue, depositOf, fmtDate, money, normPhone, twDate, WEEKDAYS, weekday } from "../lib/utils";
 import { Field, PageHero, useTitle } from "../components/ui";
 import { appliesTo, calcAmount, discountLabel } from "../lib/promos";
+import LineBind from "../components/LineBind";
 
 const STEPS = ["選擇服務", "選擇時段", "填寫資料", "確認送出"];
 
@@ -86,6 +87,11 @@ export default function Booking() {
     return () => { alive = false; };
   }, [promo?.code, form.serviceId, services]);
   const priceFor = (s) => (promo && appliesTo(promo, s.id) ? calcAmount(promo, s.price) : s.price);
+  // 預付訂金：依應付金額試算（預約成立時資料庫會再算一次）
+  const svcSel = services.find((s) => s.id === form.serviceId);
+  const payable = quote?.ok ? quote.amount : svcSel?.price || 0;
+  const deposit = depositOf(payable, cfg);
+  const due = depositDue(form.date, cfg);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [done, setDone] = useState(null);
@@ -149,7 +155,9 @@ export default function Booking() {
       return;
     }
     kickNotifications();
-    setDone(data);
+    // 訂金以試算顯示；資料庫已依同一規則寫入訂單
+    const dep = depositOf(data.amount, cfg);
+    setDone({ ...data, deposit: dep, deposit_due: depositDue(data.date, cfg) });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -172,19 +180,29 @@ export default function Booking() {
               <div className="kicker">預約編號</div>
               <div className="code">{done.booking_id}</div>
               <p className="muted small">訂單編號 {done.order_id}（選片、查詢時使用，請妥善保存）</p>
+              {form.contactMethod === "line" && <div className="mt-3" style={{ textAlign: "left" }}><LineBind code={done.booking_id} phone={form.phone} highlight /></div>}
               <dl className="mt-3" style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "8px 18px", textAlign: "left", maxWidth: 360, margin: "24px auto" }}>
                 <dt className="muted">服務</dt><dd style={{ margin: 0 }}>{done.service}</dd>
                 <dt className="muted">時間</dt><dd style={{ margin: 0 }}>{fmtDate(done.date)} {done.time}</dd>
                 <dt className="muted">費用</dt><dd style={{ margin: 0 }}>{money(done.amount)}{done.discount > 0 && <div className="small muted">原價 <s>{money(done.list_price)}</s>｜{done.promo_title || "優惠"}折抵 {money(done.discount)}</div>}</dd>
                 <dt className="muted">姓名</dt><dd style={{ margin: 0 }}>{done.name}</dd>
               </dl>
-              {cfg.payment_info && <div className="alert alert-info" style={{ textAlign: "left", whiteSpace: "pre-line" }}><b>付款方式</b><br />{cfg.payment_info}</div>}
+              {done.deposit > 0 ? (
+                <div className="deposit-box">
+                  <div className="kicker">預付訂金</div>
+                  <div className="deposit-amt">{money(done.deposit)}</div>
+                  <p>請於 <b>{fmtDate(done.deposit_due)}</b> 前完成付款，以確認預約。尾款 {money(done.amount - done.deposit)} 於拍攝當天支付。</p>
+                  {cfg.payment_info && <div className="deposit-info"><b>付款方式</b><br />{cfg.payment_info}</div>}
+                  <p className="small muted">付款後請保留轉帳紀錄，工作室確認收到訂金後會通知您。</p>
+                  {cfg.deposit?.policy && <div className="small muted" style={{ whiteSpace: "pre-line", marginTop: 8 }}><b>訂金說明</b><br />{cfg.deposit.policy}</div>}
+                </div>
+              ) : cfg.payment_info && <div className="alert alert-info" style={{ textAlign: "left", whiteSpace: "pre-line" }}><b>付款方式</b><br />{cfg.payment_info}</div>}
               <p className="small muted mt-2">{form.contactMethod === "email" ? `確認通知將寄至 ${form.email}。` : ""}{cfg.notice}</p>
               <div className="flex flex-wrap mt-3" style={{ justifyContent: "center" }}>
                 <a className="btn btn-ghost btn-sm" href={gcal} target="_blank" rel="noreferrer">加入 Google 行事曆</a>
                 <Link className="btn btn-sm" to="/">回首頁</Link>
               </div>
-              <p className="small muted mt-3">想用 LINE 收到通知？加入官方帳號後傳送「綁定 {done.booking_id} {form.phone}」即可。</p>
+              {form.contactMethod !== "line" && <div className="mt-3" style={{ textAlign: "left" }}><LineBind code={done.booking_id} phone={form.phone} /></div>}
             </div>
           </div>
         </section>
@@ -275,7 +293,7 @@ export default function Booking() {
                       <Field label="Email *" error={errors.email} full><input className={`input ${errors.email ? "err" : ""}`} type="email" value={form.email} maxLength={120} onChange={(e) => set("email", e.target.value)} autoComplete="email" /></Field>
                     ) : (
                       <>
-                        <Field label="LINE ID *" error={errors.lineId}><input className={`input ${errors.lineId ? "err" : ""}`} value={form.lineId} maxLength={60} onChange={(e) => set("lineId", e.target.value)} /></Field>
+                        <Field label="LINE ID *" error={errors.lineId} hint="送出後點一下「開啟 LINE 自動通知」，之後所有通知都會自動傳到 LINE"><input className={`input ${errors.lineId ? "err" : ""}`} value={form.lineId} maxLength={60} onChange={(e) => set("lineId", e.target.value)} /></Field>
                         <Field label="Email（選填，接收通知信）"><input className="input" type="email" value={form.email} maxLength={120} onChange={(e) => set("email", e.target.value)} /></Field>
                       </>
                     )}
@@ -305,6 +323,7 @@ export default function Booking() {
                     <dt className="muted">姓名</dt><dd style={{ margin: 0 }}>{form.name}</dd>
                     <dt className="muted">電話</dt><dd style={{ margin: 0 }}>{form.phone}</dd>
                     <dt className="muted">{form.contactMethod === "email" ? "Email" : "LINE ID"}</dt><dd style={{ margin: 0 }}>{form.contactMethod === "email" ? form.email : form.lineId}</dd>
+                    {deposit > 0 && <><dt className="muted">預付訂金</dt><dd style={{ margin: 0 }}><b>{money(deposit)}</b>（請於 {fmtDate(due)} 前付款）<div className="small muted">尾款 {money(payable - deposit)} 於拍攝當天支付</div></dd></>}
                     {promo && <><dt className="muted">優惠</dt><dd style={{ margin: 0 }}>{promo.title}（代碼 {promo.code}）{quote && !quote.ok ? <div className="err-text">{quote.error}，送出時不會套用</div> : quote?.legacy && <div className="small muted">折扣金額以工作室確認為準</div>}</dd></>}
                     {form.note && <><dt className="muted">備註</dt><dd style={{ margin: 0, whiteSpace: "pre-line" }}>{form.note}</dd></>}
                   </dl>
@@ -328,6 +347,7 @@ export default function Booking() {
                   ? <><s className="muted small">{money(quote.list_price)}</s> <b style={{ color: "var(--accent)" }}>{money(quote.amount)}</b></>
                   : money(service.price)}</dd>
                 {quote?.ok && quote.discount > 0 && <><dt>優惠</dt><dd style={{ color: "var(--accent)" }}>－{money(quote.discount)}</dd></>}
+                {svcSel && deposit > 0 && <><dt>預付訂金</dt><dd><b>{money(deposit)}</b></dd><dt>尾款</dt><dd>{money(payable - deposit)}<div className="small muted">拍攝當天支付</div></dd></>}
               </dl>
               <p className="small muted">同一時段只接受一組預約，已被預約的時段會自動停用。</p>
             </aside>

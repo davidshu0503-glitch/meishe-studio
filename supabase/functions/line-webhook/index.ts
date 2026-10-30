@@ -5,6 +5,8 @@
 //  功能：
 //   • 客戶加入好友 → 自動回覆綁定說明
 //   • 客戶傳「綁定 預約編號 電話」→ 自動綁定 LINE，之後預約/選片/交件通知都會推播到 LINE
+//     （網站預約成功頁有「一鍵傳送綁定訊息」按鈕，訊息會自動填好）
+//   • 綁定成功後，會把綁定前因「尚未綁定」而略過的 LINE 通知（14 天內）重新寄出
 //   • 傳「我的ID」→ 回覆自己的 LINE userId（工作室設定 LINE_ADMIN_USER_IDS 用）
 //
 //  需要的環境變數：LINE_CHANNEL_SECRET、LINE_CHANNEL_ACCESS_TOKEN、SITE_URL
@@ -91,7 +93,23 @@ Deno.serve(async (req) => {
         const { data: c } = await db.from("customers").select("id, name, phone").eq("id", customerId).maybeSingle();
         if (c && (digits(c.phone) === phone || digits(orderPhone) === phone)) {
           await db.from("customers").update({ line_user_id: userId }).eq("id", c.id);
-          await reply(ev.replyToken, `${c.name} 您好，LINE 綁定成功 ✅\n之後的預約提醒、選片與交件通知都會傳到這裡。`);
+          // 補發：綁定前因「尚未綁定」被略過的 LINE 通知（例如預約成功、訂金資訊）
+          const since = new Date(Date.now() - 14 * 86400000).toISOString();
+          const { data: resend } = await db.from("notifications")
+            .update({ status: "queued", attempts: 0, error: "", claimed_at: null })
+            .eq("customer_id", c.id).eq("channel", "line").eq("audience", "customer").eq("status", "skipped").gte("created_at", since)
+            .select("id");
+          await reply(ev.replyToken, `${c.name} 您好，LINE 綁定成功 ✅\n之後的訂金確認、拍攝提醒、選片與交件通知都會自動傳到這裡。${resend?.length ? `\n\n稍後會補傳 ${resend.length} 則先前的通知給您。` : ""}`);
+          // 立即寄出（失敗也沒關係，排程每 5 分鐘會再處理）
+          if (resend?.length) {
+            const task = fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notifications`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`, "Content-Type": "application/json" },
+              body: "{}",
+            }).catch(() => {});
+            const rt = (globalThis as any).EdgeRuntime;
+            if (rt?.waitUntil) rt.waitUntil(task); else await task;
+          }
           ok = true;
         }
       }

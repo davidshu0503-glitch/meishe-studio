@@ -39,7 +39,7 @@ export default function Orders() {
     <>
       <div className="admin-head">
         <div><div className="kicker">Orders</div><h1>訂單／選片交件</h1></div>
-        <button className="btn btn-ghost btn-sm" onClick={() => csvDownload(`orders_${twDate()}.csv`, [["訂單編號", "預約編號", "客戶", "電話", "服務", "拍攝日", "時間", "原價", "優惠代碼", "折扣", "金額", "已收", "付款方式", "狀態", "建立時間"], ...list.map((o) => [o.id, o.booking_id, o.customer_name, o.phone, o.service_name, o.date, o.time, o.list_price ?? o.amount, o.promo_code || "", o.discount || 0, o.amount, o.paid_amount, o.payment_method, o.status, fmtDateTime(o.created_at)])])}>匯出 CSV</button>
+        <button className="btn btn-ghost btn-sm" onClick={() => csvDownload(`orders_${twDate()}.csv`, [["訂單編號", "預約編號", "客戶", "電話", "服務", "拍攝日", "時間", "原價", "優惠代碼", "折扣", "金額", "訂金", "訂金期限", "已收", "付款方式", "狀態", "建立時間"], ...list.map((o) => [o.id, o.booking_id, o.customer_name, o.phone, o.service_name, o.date, o.time, o.list_price ?? o.amount, o.promo_code || "", o.discount || 0, o.amount, o.deposit_amount || 0, o.deposit_due || "", o.paid_amount, o.payment_method, o.status, fmtDateTime(o.created_at)])])}>匯出 CSV</button>
       </div>
       <div className="toolbar">
         <input className="input" placeholder="搜尋訂單編號／姓名／電話" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -65,7 +65,7 @@ export default function Orders() {
                   <td><b>{o.customer_name}</b><div className="small muted">{o.phone}</div></td>
                   <td>{o.service_name}</td>
                   <td>{o.date ? `${fmtDate(o.date)} ${o.time || ""}` : "—"}</td>
-                  <td>{money(o.amount)}{o.discount > 0 && <div className="small" style={{ color: "var(--accent)" }}>{o.promo_code} 折 {money(o.discount)}</div>}{o.paid_amount > 0 && <div className="small muted">已收 {money(o.paid_amount)}</div>}</td>
+                  <td>{money(o.amount)}{o.discount > 0 && <div className="small" style={{ color: "var(--accent)" }}>{o.promo_code} 折 {money(o.discount)}</div>}{o.status === "待付款" && o.deposit_amount > 0 && <div className="small" style={{ color: o.deposit_due && String(o.deposit_due) < twDate() ? "var(--danger)" : "var(--warn)" }}>訂金 {money(o.deposit_amount)} 待收{o.deposit_due ? `｜${fmtDate(o.deposit_due)}${String(o.deposit_due) < twDate() ? " 逾期" : ""}` : ""}</div>}{o.paid_amount > 0 && <div className="small muted">已收 {money(o.paid_amount)}</div>}</td>
                   <td><StatusBadge status={o.status} /></td>
                 </tr>
               ))}
@@ -133,7 +133,7 @@ export function OrderDetail() {
     const { data: o } = await supabase.from("orders").select("*").eq("id", id).maybeSingle();
     setOrder(o || false);
     if (!o) return;
-    setEdit({ amount: o.amount, paid_amount: o.paid_amount, payment_method: o.payment_method, note: o.note });
+    setEdit({ amount: o.amount, paid_amount: o.paid_amount, payment_method: o.payment_method, note: o.note, deposit_amount: o.deposit_amount ?? 0, deposit_due: o.deposit_due || "" });
     const [{ data: b }, { data: a }] = await Promise.all([
       o.booking_id ? supabase.from("bookings").select("*").eq("id", o.booking_id).maybeSingle() : Promise.resolve({ data: null }),
       supabase.from("albums").select("*").eq("order_id", id).maybeSingle(),
@@ -152,7 +152,9 @@ export function OrderDetail() {
 
   const setStatus = async (status) => {
     const patch = { status };
-    if (status === "已付款" && !order.paid_amount) patch.paid_amount = order.amount;
+    if (status === "已付款" && (order.paid_amount || 0) < order.amount) patch.paid_amount = order.amount;
+    // 確認收到訂金：已收金額至少等於訂金
+    if (status === "已預約" && order.status === "待付款" && order.deposit_amount > 0 && (order.paid_amount || 0) < order.deposit_amount) patch.paid_amount = order.deposit_amount;
     const { error } = await supabase.from("orders").update(patch).eq("id", order.id);
     if (error) return toast(errMsg(error), "err");
     if (status === "修圖中") await supabase.from("photos").update({ retouch_status: "修圖中" }).eq("album_id", album?.id || "00000000-0000-0000-0000-000000000000").eq("selected", true).eq("retouch_status", "未修圖");
@@ -162,9 +164,9 @@ export function OrderDetail() {
   };
 
   const saveOrder = async () => {
-    const { error } = await supabase.from("orders").update({
-      amount: Number(edit.amount) || 0, paid_amount: Number(edit.paid_amount) || 0, payment_method: edit.payment_method, note: edit.note,
-    }).eq("id", order.id);
+    const patch = { amount: Number(edit.amount) || 0, paid_amount: Number(edit.paid_amount) || 0, payment_method: edit.payment_method, note: edit.note };
+    if ("deposit_amount" in order) Object.assign(patch, { deposit_amount: Math.min(Number(edit.deposit_amount) || 0, patch.amount), deposit_due: edit.deposit_due || null });
+    const { error } = await supabase.from("orders").update(patch).eq("id", order.id);
     if (error) return toast(errMsg(error), "err");
     toast("已儲存"); load();
   };
@@ -241,7 +243,16 @@ export function OrderDetail() {
   const shown = onlySel ? photos.filter((p) => p.selected) : photos;
   const selCount = photos.filter((p) => p.selected).length;
   const finalCount = photos.filter((p) => p.final_path).length;
-  const next = NEXT_STEP[order.status];
+  // 預付訂金制：待付款的下一步是「確認已收訂金」（狀態改為已預約）
+  const next = order.status === "待付款" && order.deposit_amount > 0 ? ["已預約", `確認已收訂金 ${money(order.deposit_amount)}`] : NEXT_STEP[order.status];
+  const balance = Math.max((order.amount || 0) - (order.paid_amount || 0), 0);
+  const settleBalance = async () => {
+    const patch = { paid_amount: order.amount };
+    if (["待付款", "已預約"].includes(order.status)) patch.status = "已付款";
+    const { error } = await supabase.from("orders").update(patch).eq("id", order.id);
+    if (error) return toast(errMsg(error), "err");
+    kickNotifications(); toast("已收尾款，訂單已結清"); load();
+  };
 
   return (
     <>
@@ -254,6 +265,7 @@ export function OrderDetail() {
         <div className="flex flex-wrap">
           <StatusBadge status={order.status} />
           {next && <button className="btn btn-accent btn-sm" disabled={(next[0] === "待選片" && !photos.length) || (next[0] === "已完成" && !finalCount)} onClick={() => setStatus(next[0])}>{next[1]} →</button>}
+          {order.status !== "待付款" && order.status !== "已取消" && balance > 0 && order.deposit_amount > 0 && <button className="btn btn-ghost btn-sm" onClick={settleBalance}>收尾款 {money(balance)}</button>}
           <select className="select" style={{ width: "auto", padding: "7px 10px" }} value={order.status} onChange={(e) => setConfirm({ type: "status", value: e.target.value })}>
             {ORDER_STATUSES.map((s) => <option key={s}>{s}</option>)}
           </select>
@@ -279,6 +291,14 @@ export function OrderDetail() {
         {edit && (
           <div className="panel">
             <h3>金額與付款</h3>
+            {order.deposit_amount > 0 && (
+              <div className={`deposit-status ${order.status === "待付款" ? (order.deposit_due && String(order.deposit_due) < twDate() ? "late" : "wait") : "ok"}`}>
+                {order.status === "待付款"
+                  ? <>訂金 <b>{money(order.deposit_amount)}</b> 待收{order.deposit_due && `｜期限 ${fmtDate(order.deposit_due)}`}{order.deposit_due && String(order.deposit_due) < twDate() && "（已逾期）"}</>
+                  : <>訂金 {money(order.deposit_amount)} 已收{order.deposit_paid_at && `（${fmtDateTime(order.deposit_paid_at)}）`}</>}
+                <span>　已收 {money(order.paid_amount)}｜尾款 {balance > 0 ? money(balance) : "已結清"}</span>
+              </div>
+            )}
             {order.promo_code && (
               <div className="alert alert-info small mb-2">
                 使用優惠 <b>{order.promo_code}</b>{order.promo_title && `｜${order.promo_title}`}<br />
@@ -288,6 +308,10 @@ export function OrderDetail() {
             )}
             <div className="form-grid">
               <Field label="訂單金額"><input className="input" type="number" value={edit.amount} onChange={(e) => setEdit({ ...edit, amount: e.target.value })} /></Field>
+              {"deposit_amount" in order && <>
+                <Field label="訂金"><input className="input" type="number" value={edit.deposit_amount} onChange={(e) => setEdit({ ...edit, deposit_amount: e.target.value })} /></Field>
+                <Field label="訂金付款期限"><input className="input" type="date" value={edit.deposit_due || ""} onChange={(e) => setEdit({ ...edit, deposit_due: e.target.value })} /></Field>
+              </>}
               <Field label="已收金額"><input className="input" type="number" value={edit.paid_amount} onChange={(e) => setEdit({ ...edit, paid_amount: e.target.value })} /></Field>
               <Field label="付款方式" full>
                 <select className="select" value={edit.payment_method} onChange={(e) => setEdit({ ...edit, payment_method: e.target.value })}>

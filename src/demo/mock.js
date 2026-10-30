@@ -6,7 +6,7 @@
 import { WORK_HERO, WORK_PORTFOLIO, WORK_STYLE_SETS } from "../lib/works";
 import TEMPLATES from "./templates.json";
 import { DEFAULT_BOOKING, DEFAULT_CATEGORIES, DEFAULT_SERVICES, DEFAULT_STUDIO } from "../lib/defaults";
-import { addDays, twDate } from "../lib/utils";
+import { addDays, depositOf, twDate } from "../lib/utils";
 import { SUPABASE_URL } from "../lib/supabase";
 
 const FILES = (window.__GIME_DEMO_FILES = window.__GIME_DEMO_FILES || {});
@@ -35,9 +35,10 @@ function seed() {
   T.profiles.push({ id: admin.id, role: "admin" }, { id: member.id, role: "member" });
 
   T.settings.push(
-    { key: "studio", value: { ...DEFAULT_STUDIO, email: "hello@gime.studio" }, is_public: true },
+    { key: "studio", value: { ...DEFAULT_STUDIO, email: "hello@gime.studio", line_oa_id: "@gime-demo" }, is_public: true },
     { key: "hero", value: WORK_HERO, is_public: true },
-    { key: "booking", value: { ...DEFAULT_BOOKING, payment_info: "（示範）國泰世華 013｜帳號 000-00-000000-0｜戶名 即美創畫攝影" }, is_public: true },
+    { key: "booking", value: { ...DEFAULT_BOOKING, payment_info: "（示範）國泰世華 013｜帳號 000-00-000000-0｜戶名 即美創畫攝影",
+      deposit: { type: "percent", value: 30, days: 3, policy: "（示範）訂金說明請在後台「網站內容 → 預約設定」填寫，例如改期與退款規則。" } }, is_public: true },
     { key: "notify", value: { studio_email: "studio@gime.studio", enabled: {} }, is_public: false },
     { key: "templates", value: TEMPLATES, is_public: false },
   );
@@ -109,6 +110,8 @@ function seed() {
     const b = T.bookings.find((x) => x.id === o.booking_id); if (b) b.promo_code = "FAMILY26";
   });
 
+  T.orders.forEach(setDeposit);
+
   // 讓「資料整理」有東西可以試：舊的取消預約、舊通知、舊變更紀錄、沒有預約的客戶
   const old = (d) => new Date(Date.now() - d * 86400000).toISOString();
   [[130, "11:00"], [150, "15:00"], [200, "10:00"]].forEach(([d, t], k) => {
@@ -176,17 +179,40 @@ const bookingPayload = (b) => {
   return { name: b.name, phone: b.phone, booking_id: b.id, service: b.service_name, date: b.date, time: b.time, note: b.note, order_id: o?.id, amount: o?.amount };
 };
 
+/* ---------------- 訂金（對應 06-deposit.sql） ---------------- */
+const bookingCfg = () => T.settings.find((x) => x.key === "booking")?.value || {};
+function setDeposit(o) {
+  if (o.status !== "待付款" || (o.deposit_amount || 0) > 0) return;
+  const cfg = bookingCfg();
+  o.deposit_amount = depositOf(o.amount, cfg);
+  if (o.deposit_amount > 0) {
+    const days = Number(cfg.deposit?.days ?? 3), today = twDate();
+    const latest = o.date ? (addDays(o.date, -1) < today ? today : addDays(o.date, -1)) : addDays(today, days);
+    o.deposit_due = addDays(today, days) < latest ? addDays(today, days) : latest;
+  }
+}
+function depositVars(o) {
+  const cfg = bookingCfg(), dep = o.deposit_amount || 0;
+  const info = cfg.payment_info || "", policy = cfg.deposit?.policy || "";
+  return {
+    deposit: dep, deposit_due: o.deposit_due || "", payment_info: info,
+    balance: Math.max((o.amount || 0) - Math.max(o.paid_amount || 0, o.status === "已預約" ? dep : 0), 0),
+    deposit_text: dep > 0 ? `訂金：NT$ ${dep}（請於 ${o.deposit_due} 前完成付款，以確認預約）\n尾款：NT$ ${Math.max(o.amount - dep, 0)}（拍攝當天支付）${info ? `\n\n【訂金付款方式】\n${info}` : ""}${policy ? `\n\n【訂金說明】\n${policy}` : ""}\n` : "",
+  };
+}
+
 /* ---------------- 觸發器 ---------------- */
 function afterInsert(table, row) {
   if (table === "orders") {
     const note = T.bookings.find((b) => b.id === row.booking_id)?.note || "";
     enqueue("booking_created", row.id, row.customer_id, row.id, row.booking_id,
-      { name: row.customer_name, phone: row.phone, order_id: row.id, booking_id: row.booking_id, service: row.service_name, date: row.date, time: row.time, amount: row.amount, note }, ["customer", "studio"]);
+      { name: row.customer_name, phone: row.phone, order_id: row.id, booking_id: row.booking_id, service: row.service_name, date: row.date, time: row.time, amount: row.amount, note, ...depositVars(row) }, ["customer", "studio"]);
   }
 }
 function beforeUpdate(table, oldRow, row) {
   row.updated_at = now();
   if (table === "orders" && row.status !== oldRow.status && row.status === "已付款" && !row.paid_at) row.paid_at = now();
+  if (table === "orders" && row.status !== oldRow.status && oldRow.status === "待付款" && ["已預約", "已付款"].includes(row.status) && row.deposit_amount > 0 && !row.deposit_paid_at) row.deposit_paid_at = now();
 }
 function afterUpdate(table, oldRow, row) {
   if (table === "bookings") {
@@ -205,12 +231,13 @@ function afterUpdate(table, oldRow, row) {
       const b = T.bookings.find((x) => x.id === row.booking_id && x.status === "已預約");
       if (b) updateRow("bookings", b, { status: "已完成" });
     }
-    const ev = { 已付款: "payment_received", 待選片: "album_ready", 客戶已選片: "selection_done", 修圖中: "retouch_started", 已完成: "delivered" }[row.status];
+    const ev = { 已付款: "payment_received", 待選片: "album_ready", 客戶已選片: "selection_done", 修圖中: "retouch_started", 已完成: "delivered",
+      已預約: oldRow.status === "待付款" && row.deposit_amount > 0 ? "deposit_received" : null }[row.status];
     if (ev) {
       const al = T.albums.find((a) => a.order_id === row.id);
       enqueue(ev, row.id, row.customer_id, row.id, row.booking_id,
         { name: row.customer_name, phone: row.phone, order_id: row.id, booking_id: row.booking_id, service: row.service_name, date: row.date, time: row.time, amount: row.amount,
-          selected_count: al ? T.photos.filter((p) => p.album_id === al.id && p.selected).length : 0 },
+          selected_count: al ? T.photos.filter((p) => p.album_id === al.id && p.selected).length : 0, ...depositVars(row) },
         row.status === "客戶已選片" ? ["customer", "studio"] : ["customer"]);
     }
   }
@@ -245,6 +272,7 @@ const DEFAULTS = {
 function insertRow(table, data) {
   const row = { ...(DEFAULTS[table]?.() || {}), ...data, updated_at: now() };
   derive(table, row);
+  if (table === "orders") setDeposit(row);
   checkUnique(table, row);
   T[table].push(row);
   afterInsert(table, row);

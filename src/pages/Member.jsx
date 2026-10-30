@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import LineBind from "../components/LineBind";
 import { useAuth } from "../lib/auth";
 import { errMsg, supabase } from "../lib/supabase";
 import { fmtDate, money, normPhone } from "../lib/utils";
@@ -148,6 +149,9 @@ function MemberCenter() {
         </div>
         <div className="flex"><Link className="btn btn-sm" to="/booking">新增預約</Link><button className="btn btn-ghost btn-sm" onClick={signOut}>登出</button></div>
       </div>
+      {!customer.line_user_id && bookings?.[0] && (
+        <div className="mb-3"><LineBind code={bookings[0].id} phone={customer.phone || bookings[0].phone} compact /></div>
+      )}
       <div className="tabs">
         <button className={tab === "bookings" ? "on" : ""} onClick={() => setTab("bookings")}>我的預約</button>
         <button className={tab === "orders" ? "on" : ""} onClick={() => setTab("orders")}>訂單與相簿</button>
@@ -171,7 +175,8 @@ function MemberCenter() {
             const album = albums.find((a) => a.order_id === o.id);
             return (
               <div key={o.id} className="row-card">
-                <div><b>{o.service_name}</b><div className="small muted">{o.id}｜{fmtDate(o.date)}｜{money(o.amount)}</div></div>
+                <div><b>{o.service_name}</b><div className="small muted">{o.id}｜{fmtDate(o.date)}｜{money(o.amount)}</div>
+                  {o.status === "待付款" && o.deposit_amount > 0 && <div className="small" style={{ color: "var(--accent)" }}>請於 {fmtDate(o.deposit_due)} 前支付訂金 {money(o.deposit_amount)}</div>}</div>
                 <div className="flex"><StatusBadge status={o.status} />{album && <Link className="btn btn-sm" to={`/gallery?order=${o.id}`}>{o.status === "已完成" ? "下載照片" : "查看相簿"}</Link>}</div>
               </div>
             );
@@ -195,7 +200,7 @@ function MemberCenter() {
                 <dt className="muted">電話</dt><dd style={{ margin: 0 }}>{customer.phone || "—"}</dd>
                 <dt className="muted">Email</dt><dd style={{ margin: 0 }}>{user.email}<div className="small muted">登入帳號，如需更改請聯繫工作室</div></dd>
                 <dt className="muted">LINE ID</dt><dd style={{ margin: 0 }}>{customer.line_id || "—"}</dd>
-                <dt className="muted">LINE 通知</dt><dd style={{ margin: 0 }}>{customer.line_user_id ? "已綁定 ✅" : "尚未綁定（加入官方帳號後傳送「綁定 預約編號 電話」）"}</dd>
+                <dt className="muted">LINE 通知</dt><dd style={{ margin: 0 }}>{customer.line_user_id ? "已綁定 ✅ 預約與交件通知會自動傳到 LINE" : "尚未綁定（請用頁面上方的「開啟 LINE 自動通知」）"}</dd>
               </dl>
               <button className="btn btn-ghost btn-sm mt-3" onClick={() => setEdit({ name: customer.name, phone: customer.phone, line_id: customer.line_id })}>編輯資料</button>
             </>

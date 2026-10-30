@@ -32,15 +32,16 @@ export default function Portfolio() {
   const [params, setParams] = useSearchParams();
   const catParam = params.get("cat");
   const catRow = categories.find((c) => c.slug === catParam);
-  // 從分類推回分層；沒有指定時預設顯示「一拍多風格」
-  const tier = catRow?.tier || params.get("tier") || (styleSets.length ? "oneshot" : "all");
+  // 從分類推回分層；沒有指定時預設顯示第一個分層（入門拍攝）
+  const firstTier = TIER_ORDER.find((t) => categories.some((c) => c.tier === t));
+  const tier = catRow?.tier || params.get("tier") || firstTier || (styleSets.length ? "oneshot" : "all");
   const cat = catRow ? catRow.slug : "all";
   const page = Math.max(0, Number(params.get("p") || 1) - 1);
   const [lb, setLb] = useState(null);
   const [openSet, setOpenSet] = useState(null);
 
   const visibleCats = categories.filter((c) => c.tier !== "hidden");
-  const tierRank = (c) => ["main", "addon", "entry"].indexOf(c.tier);
+  const tierRank = (c) => TIER_ORDER.indexOf(c.tier);
   const tierCats = tier === "all" || tier === "oneshot" ? [...visibleCats].sort((a, b) => tierRank(a) - tierRank(b) || a.sort - b.sort) : visibleCats.filter((c) => c.tier === tier);
   const list = useMemo(() => {
     const order = new Map(tierCats.map((c, i) => [c.slug, i]));
@@ -55,21 +56,24 @@ export default function Portfolio() {
   const sets = styleSets.filter((s) => setFrames(s).length > 1);
 
   const go = (next) => setParams(Object.fromEntries(Object.entries(next).filter(([, v]) => v)));
-  const setTier = (t) => go({ tier: t === "all" ? "" : t });
+  const setTier = (t) => go({ tier: t });
   const setCat = (c) => go(c === "all" ? { tier: tier === "all" ? "" : tier } : { cat: c });
   const setPage = (p) => {
     go({ tier: cat === "all" && tier !== "all" ? tier : "", cat: cat !== "all" ? cat : "", p: p > 0 ? String(p + 1) : "" });
     window.scrollTo({ top: 260, behavior: "smooth" });
   };
+  // 頁籤順序：入門拍攝（引流）→ 一拍多風格 → 典藏藝術肖像（主力）→ 風格加購（加值）→ 全部
+  const tierTabs = TIER_ORDER.filter((t) => visibleCats.some((c) => c.tier === t)).map((t) => [t, TIERS[t].label]);
   const tabs = [
+    ...tierTabs.slice(0, 1),
     ...(sets.length ? [["oneshot", "一拍多風格"]] : []),
-    ...TIER_ORDER.filter((t) => visibleCats.some((c) => c.tier === t)).map((t) => [t, TIERS[t].label]),
+    ...tierTabs.slice(1),
     ["all", "全部作品"],
   ];
 
   return (
     <>
-      <PageHero eyebrow="Portfolio" title="作品集" sub="一拍多風格・典藏藝術肖像・風格加購・入門拍攝" />
+      <PageHero eyebrow="Portfolio" title="作品集" sub="入門拍攝・一拍多風格・典藏藝術肖像・風格加購" />
       <section className="section-tight">
         <div className="wrap">
           <div className="tier-tabs" role="tablist">

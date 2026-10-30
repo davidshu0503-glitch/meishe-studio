@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useSite } from "../lib/site";
 import { imgUrl } from "../lib/supabase";
-import { priceNote, priceText, TIERS } from "../lib/utils";
+import { priceNote, priceText, TIER_ORDER, TIERS } from "../lib/utils";
 import { Reveal, useTitle } from "../components/ui";
 import Protect, { Watermark } from "../components/Protect";
 import StyleShowcase from "../components/StyleShowcase";
@@ -10,6 +10,8 @@ import { OfferCard, PromoLink } from "../components/Promo";
 import { discountLabel } from "../lib/promos";
 
 const HERO_MS = 6000;
+// 首頁區塊順序：入門拍攝（引流）放第一，接著一拍多風格，再依 主力 → 加值
+const HOME_ORDER = [TIER_ORDER[0], "oneshot", ...TIER_ORDER.slice(1)];
 
 function Hero() {
   const { hero: baseHero, studio, categories, promotions } = useSite();
@@ -64,8 +66,8 @@ function Hero() {
         )}
         <div className="hero-cta hero-anim" style={{ animationDelay: ".45s" }}>
           <Link to="/booking" className="btn btn-light">線上預約</Link>
-          <a href="#oneshot" className="btn btn-light" style={{ borderColor: "transparent" }}
-            onClick={(e) => { e.preventDefault(); document.getElementById("oneshot")?.scrollIntoView({ behavior: "smooth" }); }}>看一拍多風格 →</a>
+          <a href="#entry" className="btn btn-light" style={{ borderColor: "transparent" }}
+            onClick={(e) => { e.preventDefault(); document.getElementById("entry")?.scrollIntoView({ behavior: "smooth" }); }}>看拍攝方案 →</a>
         </div>
       </div>
       {s.cat && !promo && (
@@ -133,6 +135,7 @@ export default function Home() {
   const entryServices = svc("entry").filter((s) => s.bookable).slice(0, 4);
   const hasSets = styleSets.some((s) => (s.styles || []).length > 0);
   let n = 0;
+  let light = 0;
 
   return (
     <>
@@ -151,103 +154,91 @@ export default function Home() {
         </section>
       )}
 
-      {/* 01 一拍多風格 */}
-      {hasSets && (
-        <section className="section oneshot-sec" id="oneshot">
-          <div className="wrap">
-            <Reveal className="tier-head on-dark">
-              <div className="tier-no">{String(++n).padStart(2, "0")}</div>
-              <div>
-                <div className="eyebrow">One Shoot · Many Styles</div>
-                <h2 className="title-lg">拍一次，擁有多種藝術風格</h2>
-                <p className="lead">同一次拍攝的照片，可以再轉成金箔、油畫、雕塑、水彩、普普等不同風格。點右邊的縮圖，看同一張原片的各種版本。</p>
-              </div>
-            </Reveal>
-            <StyleShowcase sets={styleSets} watermark={studio.watermark} />
-            <div className="center mt-4 flex" style={{ justifyContent: "center", flexWrap: "wrap" }}>
-              <Link to="/booking" className="btn btn-accent">預約拍攝</Link>
-              <Link to="/portfolio?tier=oneshot" className="btn btn-light">看全部一拍多風格作品</Link>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* 02 主力：典藏藝術肖像 */}
-      {byTier.main.length > 0 && (
-        <section className="section">
-          <div className="wrap">
-            <TierHead tier="main" index={++n} />
-            <Protect>
-              <div className="cat-grid main">
-                {byTier.main.map((c) => <CategoryCard key={c.slug} c={c} cover={coverOf(c.slug)} count={countOf(c.slug)} watermark={studio.watermark} big />)}
-              </div>
-            </Protect>
-            {svc("main").length > 0 && (
-              <div className="tier-offers">
-                {svc("main").map((s) => (
-                  <div key={s.id} className="offer">
-                    <div><b>{s.name}</b><span className="small muted">{s.description}</span></div>
-                    <div className="offer-price">{priceText(s)}<small>{priceNote(s)}</small></div>
-                    <Link to={s.bookable ? `/booking?service=${s.id}` : "/services#main"} className="btn btn-sm">{s.bookable ? "預約" : "了解方案"}</Link>
+      {/* 依分層順序排列：引流（入門拍攝）→ 一拍多風格 → 主力 → 加值 */}
+      {HOME_ORDER.map((key) => {
+        if (key === "oneshot") {
+          if (!hasSets) return null;
+          return (
+            <section key={key} className="section oneshot-sec" id="oneshot">
+              <div className="wrap">
+                <Reveal className="tier-head on-dark">
+                  <div className="tier-no">{String(++n).padStart(2, "0")}</div>
+                  <div>
+                    <div className="eyebrow">One Shoot · Many Styles</div>
+                    <h2 className="title-lg">拍一次，擁有多種藝術風格</h2>
+                    <p className="lead">同一次拍攝的照片，可以再轉成金箔、油畫、雕塑、水彩、普普等不同風格。點右邊的縮圖，看同一張原片的各種版本。</p>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* 03 加值：風格加購 */}
-      {byTier.addon.length > 0 && (
-        <section className="section bg-2">
-          <div className="wrap">
-            <TierHead tier="addon" index={++n} />
-            <Protect>
-              <div className="cat-grid addon">
-                {byTier.addon.map((c) => <CategoryCard key={c.slug} c={c} cover={coverOf(c.slug)} count={countOf(c.slug)} watermark={studio.watermark} />)}
-              </div>
-            </Protect>
-            {svc("addon").length > 0 && (
-              <div className="tier-offers">
-                {svc("addon").map((s) => (
-                  <div key={s.id} className="offer">
-                    <div><b>{s.name}</b><span className="small muted">{s.description}</span></div>
-                    <div className="offer-price">{priceText(s)}<small>{priceNote(s)}</small></div>
-                    <Link to={s.bookable ? `/booking?service=${s.id}` : "/services#addon"} className="btn btn-ghost btn-sm">{s.bookable ? "加購預約" : "了解方案"}</Link>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* 04 引流：入門拍攝 */}
-      <section className="section">
-        <div className="wrap">
-          <TierHead tier="entry" index={++n} />
-          {entryServices.length > 0 && (
-            <div className="svc-grid">
-              {entryServices.map((s, k) => (
-                <Reveal key={s.id} delay={k * 100} className="svc">
-                  <div className="en">{s.subtitle}</div>
-                  <h3>{s.name}</h3>
-                  <div className="price">{priceText(s)}<small>{priceNote(s)}</small></div>
-                  <p className="muted small">{s.description}</p>
-                  <div className="spacer" />
-                  <Link to={`/booking?service=${s.id}`} className="btn btn-sm">預約此服務</Link>
                 </Reveal>
-              ))}
+                <StyleShowcase sets={styleSets} watermark={studio.watermark} />
+                <div className="center mt-4 flex" style={{ justifyContent: "center", flexWrap: "wrap" }}>
+                  <Link to="/booking" className="btn btn-accent">預約拍攝</Link>
+                  <Link to="/portfolio?tier=oneshot" className="btn btn-light">看全部一拍多風格作品</Link>
+                </div>
+              </div>
+            </section>
+          );
+        }
+        const cats = byTier[key] || [];
+        const list = svc(key);
+        if (!cats.length && !list.length) return null;
+        const bg = light++ % 2 === 1 ? "bg-2" : "";
+        if (key === "entry") {
+          return (
+            <section key={key} className={`section ${bg}`} id="entry">
+              <div className="wrap">
+                <TierHead tier="entry" index={++n} />
+                {cats.length > 0 && (
+                  <Protect>
+                    <div className="cat-grid addon">
+                      {cats.map((c) => <CategoryCard key={c.slug} c={c} cover={coverOf(c.slug)} count={countOf(c.slug)} watermark={studio.watermark} />)}
+                    </div>
+                  </Protect>
+                )}
+                {entryServices.length > 0 && (
+                  <div className="svc-grid mt-4">
+                    {entryServices.map((s, k) => (
+                      <Reveal key={s.id} delay={k * 100} className="svc">
+                        <div className="en">{s.subtitle}</div>
+                        <h3>{s.name}</h3>
+                        <div className="price">{priceText(s)}<small>{priceNote(s)}</small></div>
+                        <p className="muted small">{s.description}</p>
+                        <div className="spacer" />
+                        <Link to={`/booking?service=${s.id}`} className="btn btn-sm">預約此服務</Link>
+                      </Reveal>
+                    ))}
+                  </div>
+                )}
+                <div className="center mt-3"><Link to="/services#entry" className="btn-link small">看所有入門拍攝方案與價格 →</Link></div>
+              </div>
+            </section>
+          );
+        }
+        return (
+          <section key={key} className={`section ${bg}`}>
+            <div className="wrap">
+              <TierHead tier={key} index={++n} />
+              {cats.length > 0 && (
+                <Protect>
+                  <div className={`cat-grid ${key === "main" ? "main" : "addon"}`}>
+                    {cats.map((c) => <CategoryCard key={c.slug} c={c} cover={coverOf(c.slug)} count={countOf(c.slug)} watermark={studio.watermark} big={key === "main"} />)}
+                  </div>
+                </Protect>
+              )}
+              {list.length > 0 && (
+                <div className="tier-offers">
+                  {list.map((s) => (
+                    <div key={s.id} className="offer">
+                      <div><b>{s.name}</b><span className="small muted">{s.description}</span></div>
+                      <div className="offer-price">{priceText(s)}<small>{priceNote(s)}</small></div>
+                      <Link to={s.bookable ? `/booking?service=${s.id}` : `/services#${key}`} className={`btn btn-sm ${key === "main" ? "" : "btn-ghost"}`}>{s.bookable ? (key === "main" ? "預約" : "加購預約") : "了解方案"}</Link>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-          {byTier.entry.length > 0 && (
-            <div className="entry-cats">
-              <span className="small muted">拍攝作品：</span>
-              {byTier.entry.map((c) => <Link key={c.slug} to={`/portfolio?cat=${c.slug}`} className="chip">{c.name}（{countOf(c.slug)}）</Link>)}
-            </div>
-          )}
-        </div>
-      </section>
+          </section>
+        );
+      })}
 
       {/* 怎麼買：從入門到典藏 */}
       <section className="section-tight ladder-sec">

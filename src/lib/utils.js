@@ -9,7 +9,8 @@ export const STATUS_TONE = {
 export const EVENT_LABELS = {
   booking_created: "預約完成／訂單建立",
   booking_cancelled: "預約取消",
-  payment_received: "付款完成",
+  payment_received: "付款完成（結清）",
+  deposit_received: "已收到訂金",
   album_ready: "照片可選片",
   selection_done: "客戶完成選片",
   retouch_started: "開始修圖",
@@ -101,7 +102,7 @@ export function csvDownload(filename, rows) {
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 
-/* ---------- 作品／服務分層：一拍多風格 → 主力 → 加值 → 引流 ---------- */
+/* ---------- 作品／服務分層：引流 → 主力 → 加值（一拍多風格是跨分層的展示） ---------- */
 // name：後台用的內部名稱；label：前台顯示給客人看的名稱（不會出現「引流」等行銷用語）
 export const TIERS = {
   main: { name: "主力", label: "典藏藝術肖像", en: "Signature Art", desc: "金箔、厚塗油畫、雕塑材質。適合做成大幅掛畫，掛在客廳傳家的作品。" },
@@ -109,7 +110,7 @@ export const TIERS = {
   entry: { name: "引流", label: "入門拍攝", en: "Start Here", desc: "形象照、證件照、孕婦寫真、全家福。每件藝術作品，都從一次好好的拍攝開始。" },
   hidden: { name: "不顯示", label: "", en: "", desc: "" },
 };
-export const TIER_ORDER = ["main", "addon", "entry"];
+export const TIER_ORDER = ["entry", "main", "addon"];
 export const TIER_KEYS = [...TIER_ORDER, "hidden"];
 
 // 資料庫還沒升級（沒有 tier 欄位）時，依代碼推測分層
@@ -125,3 +126,30 @@ export const tierOf = (row) => (TIER_KEYS.includes(row?.tier) ? row.tier : TIER_
 export const priceText = (s) => (Number(s?.price) > 0 ? money(s.price) : s?.price_note || "洽詢報價");
 /** 價格後綴（「起」「／2 小時」）；洽詢報價時後綴已經顯示在主價格，不重複 */
 export const priceNote = (s) => (Number(s?.price) > 0 ? s?.price_note || "" : "");
+
+/* ---------- 預付訂金制（規則與資料庫 deposit_for 相同；最終金額以資料庫為準） ---------- */
+/** booking 設定裡的 deposit：{ type: "percent" | "amount" | "none", value, days, policy } */
+export function depositOf(amount, cfg) {
+  const d = cfg?.deposit;
+  const a = Number(amount) || 0;
+  const v = Number(d?.value) || 0;
+  if (!d || a <= 0 || v <= 0) return 0;
+  if (d.type === "percent") return Math.min(a, Math.max(1, Math.round((a * v) / 100)));
+  if (d.type === "amount") return Math.min(a, v);
+  return 0;
+}
+/** 付款期限：今天 + N 天，但最晚到拍攝前一天 */
+export function depositDue(shootDate, cfg) {
+  const days = Math.max(0, Number(cfg?.deposit?.days ?? 3));
+  const today = twDate();
+  const byDays = addDays(today, days);
+  if (!shootDate) return byDays;
+  const beforeShoot = addDays(shootDate, -1);
+  const latest = beforeShoot < today ? today : beforeShoot;
+  return byDays < latest ? byDays : latest;
+}
+export const depositLabel = (cfg) => {
+  const d = cfg?.deposit;
+  if (!d || !(Number(d.value) > 0)) return "";
+  return d.type === "percent" ? `訂金 ${d.value}%` : d.type === "amount" ? `訂金 NT$ ${Number(d.value).toLocaleString("zh-TW")}` : "";
+};

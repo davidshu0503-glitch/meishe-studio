@@ -1,7 +1,7 @@
 {
 "booking_created": {
 "subject": "【即美創畫攝影】預約成功 {{booking_id}}",
-"body": "{{name}} 您好，\n\n感謝您預約即美創畫攝影！\n\n預約編號：{{booking_id}}\n訂單編號：{{order_id}}\n服務項目：{{service}}\n拍攝時間：{{date}} {{time}}\n費用：NT$ {{amount}}\n\n工作室將盡快與您確認細節。如需改期或取消，請來電 {{studio_phone}}。\n\n{{studio_name}}\n{{site_url}}"
+"body": "{{name}} 您好，\n\n感謝您預約即美創畫攝影！\n\n預約編號：{{booking_id}}\n訂單編號：{{order_id}}\n服務項目：{{service}}\n拍攝時間：{{date}} {{time}}\n費用：NT$ {{amount}}\n{{deposit_text}}\n工作室將盡快與您確認細節。如需改期或取消，請來電 {{studio_phone}}。\n\n{{studio_name}}\n{{site_url}}"
 },
 "booking_cancelled": {
 "subject": "【即美創畫攝影】預約已取消 {{booking_id}}",
@@ -42,5 +42,9 @@
 "studio_selection_done": {
 "subject": "✅ 客戶完成選片｜{{name}} {{order_id}}",
 "body": "客戶 {{name}} 已完成選片，共 {{selected_count}} 張，可以開始修圖了。\n\n訂單：{{order_id}}（{{service}}）\n後台：{{site_url}}/admin/orders/{{order_id}}"
+},
+"deposit_received": {
+"subject": "【即美創畫攝影】已收到訂金，預約已確認 {{booking_id}}",
+"body": "{{name}} 您好，\n\n我們已收到您的訂金 NT$ {{deposit}}，預約正式確認！\n\n服務項目：{{service}}\n拍攝時間：{{date}} {{time}}\n尾款：NT$ {{balance}}（拍攝當天支付）\n\n拍攝前一天會再提醒您，期待見面！\n\n{{studio_name}}"
 }
 }

@@ -718,3 +718,33 @@ html.has-promo-bar body { padding-top: var(--bar-h); }
 .offer-discount { display: inline-block; font-family: var(--display); font-size: 22px; line-height: 1.1; color: var(--accent); font-weight: 500; letter-spacing: .04em; }
 .offer-discount.on-dark { color: #fff; background: var(--accent); font-family: var(--sans); font-size: 15px; padding: 6px 12px; border-radius: 4px; }
 .promo-bar-off { background: #fff; color: var(--accent); font-weight: 700; padding: 1px 8px; border-radius: 4px; flex: none; }
+.svc-group + .svc-oneshot { margin-top: 72px; }
+#entry { scroll-margin-top: calc(var(--header-h) + var(--bar-h) + 16px); }
+
+/* LINE 自動通知綁定（v6） */
+.line-bind { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: center; padding: 18px 20px; border: 1px solid #CDEBD3; background: #F2FBF4; border-radius: 6px; text-align: left; }
+.line-bind.hl { border-color: #06C755; box-shadow: 0 0 0 3px rgba(6,199,85,.12); }
+.line-bind.compact { grid-template-columns: 1fr; padding: 14px 16px; }
+.line-bind b { display: flex; align-items: center; gap: 8px; font-size: 16.5px; letter-spacing: .08em; }
+.line-bind p { font-size: 14.5px; color: var(--ink-2); line-height: 1.8; margin-top: 4px; }
+.line-dot { width: 10px; height: 10px; border-radius: 50%; background: #06C755; flex: none; }
+.line-steps { list-style: none; padding: 0; margin: 12px 0 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-line { background: #06C755; border-color: #06C755; color: #fff; }
+.btn-line:hover { background: #05A847; border-color: #05A847; }
+.btn-line-ghost { background: #fff; border-color: #06C755; color: #05893C; }
+.btn-line-ghost:hover { background: #06C755; color: #fff; border-color: #06C755; }
+.line-text { font-family: ui-monospace, Menlo, monospace; background: #fff; border: 1px dashed #9BD8AA; padding: 1px 6px; border-radius: 4px; cursor: copy; user-select: all; word-break: break-all; }
+.line-qr { display: grid; justify-items: center; gap: 6px; text-align: center; }
+.line-qr img { border-radius: 4px; background: #fff; padding: 4px; border: 1px solid #CDEBD3; }
+@media (max-width: 700px) { .line-qr { display: none; } .line-bind { grid-template-columns: 1fr; } }
+
+/* 預付訂金（v6） */
+.deposit-box { text-align: left; border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 18px 20px; display: grid; gap: 8px; margin: 8px 0 4px; }
+.deposit-amt { font-family: var(--display); font-size: 36px; line-height: 1.1; color: var(--accent); }
+.deposit-box p { font-size: 15px; line-height: 1.9; color: var(--ink-2); }
+.deposit-info { background: #fff; border: 1px dashed var(--accent); border-radius: 4px; padding: 10px 12px; white-space: pre-line; font-size: 15px; }
+.deposit-status { padding: 10px 12px; border-radius: 4px; font-size: 14.5px; margin-bottom: 12px; }
+.deposit-status.wait { background: var(--warn-bg); color: var(--warn); }
+.deposit-status.late { background: var(--danger-bg); color: var(--danger); }
+.deposit-status.ok { background: var(--ok-bg); color: var(--ok); }
+.deposit-status span { color: var(--ink-2); }
