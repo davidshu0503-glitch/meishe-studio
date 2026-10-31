@@ -588,7 +588,7 @@ function NotifyTab() {
       </div>
       <div className="panel">
         <h3>工作室收件人（新預約會同時通知 LINE 與 Email）</h3>
-        <Field label="工作室收件 Email（新預約、取消、選片完成）"><input className="input" type="email" value={notify.studio_email || ""} onChange={(e) => setNotify({ ...notify, studio_email: e.target.value })} /></Field>
+        <Field label="工作室收件 Email（新預約、取消、選片完成）" hint="可填多個，用逗號分隔"><input className="input" value={notify.studio_email || ""} onChange={(e) => setNotify({ ...notify, studio_email: e.target.value })} /></Field>
         <StudioNotify email={notify.studio_email} onSaveFirst={save} />
         <h3 className="mt-3">通知開關</h3>
         <div className="list mt-2">

@@ -115,7 +115,7 @@ export default function StudioNotify({ email, onSaveFirst }) {
         <label>工作室 LINE（接收新預約通知）</label>
         {list.length === 0 ? <div className="small muted">尚未綁定，新預約目前只會寄 Email。</div> : (
           <div className="flex flex-wrap">{list.map((id) => (
-            <span key={id} className="chip" title={id}>LINE {mask(id)}<button onClick={() => remove(id)} aria-label="移除">×</button></span>
+            <span key={id} className="chip" title={id} style={/^U[0-9a-f]{32}$/i.test(id) ? undefined : { borderColor: "var(--danger, #b3412e)", color: "var(--danger, #b3412e)" }}>{/^U[0-9a-f]{32}$/i.test(id) ? `LINE ${mask(id)}` : `${id}（不是 LINE userId，收不到，請移除後按綁定）`}<button onClick={() => remove(id)} aria-label="移除">×</button></span>
           ))}</div>
         )}
         <div className="flex flex-wrap mt-1">

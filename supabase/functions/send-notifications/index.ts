@@ -41,14 +41,19 @@ function render(tpl: string, vars: Record<string, unknown>) {
   });
 }
 
-async function sendEmail(to: string, subject: string, text: string) {
+// 可填多個收件人：用逗號、分號、空白或換行分隔
+const emailList = (s: string) => [...new Set(String(s || "").split(/[\s,;，、]+/).map((x) => x.trim()).filter((x) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)))];
+// LINE userId 一定是 U 開頭 + 32 碼英數；手機號碼或 LINE ID 無法推播，直接略過
+const isLineUserId = (s: string) => /^U[0-9a-f]{32}$/i.test(s);
+
+async function sendEmail(to: string | string[], subject: string, text: string) {
   const key = Deno.env.get("RESEND_API_KEY");
   if (!key) return { skipped: "尚未設定 RESEND_API_KEY" };
   const from = Deno.env.get("MAIL_FROM") || "GIME STUDIO <onboarding@resend.dev>";
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from, to: [to], subject, text }),
+    body: JSON.stringify({ from, to: Array.isArray(to) ? to : [to], subject, text }),
   });
   if (!res.ok) throw new Error(`Resend ${res.status}: ${(await res.text()).slice(0, 300)}`);
   return { ok: true };
@@ -80,8 +85,11 @@ Deno.serve(async (req) => {
   const templates = { ...DEFAULT_TEMPLATES, ...(settings.templates || {}) };
   const siteUrl = (Deno.env.get("SITE_URL") || studio.site_url || "").replace(/\/$/, "");
   // 工作室 LINE 收件人：後台「通知設定」綁定的名單 + Secrets 的 LINE_ADMIN_USER_IDS（兩邊合併、去重）
-  const adminLineIds = [...new Set(`${Deno.env.get("LINE_ADMIN_USER_IDS") || ""},${notify.line_admin_ids || ""}`
+  const adminLineAll = [...new Set(`${Deno.env.get("LINE_ADMIN_USER_IDS") || ""},${notify.line_admin_ids || ""}`
     .split(",").map((s: string) => s.trim()).filter(Boolean))];
+  const adminLineIds = adminLineAll.filter(isLineUserId);
+  const badLineIds = adminLineAll.filter((s) => !isLineUserId(s));
+  const studioEmails = emailList(notify.studio_email || studio.email || "");
 
   const { data: claimed, error } = await db.rpc("claim_notifications", { p_limit: 30 });
   if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
@@ -117,12 +125,17 @@ Deno.serve(async (req) => {
 
       let result: any;
       if (n.channel === "email") {
-        recipient = n.audience === "studio" ? (notify.studio_email || studio.email || "") : (booking?.email || customer?.email || "");
-        result = recipient ? await sendEmail(recipient, subject, body) : { skipped: "沒有收件 Email" };
+        if (n.audience === "studio") {
+          recipient = studioEmails.join(", ");
+          result = studioEmails.length ? await sendEmail(studioEmails, subject, body) : { skipped: "沒有收件 Email（後台 → 網站內容 → 通知設定）" };
+        } else {
+          recipient = booking?.email || customer?.email || "";
+          result = recipient ? await sendEmail(recipient, subject, body) : { skipped: "沒有收件 Email" };
+        }
       } else {
         if (n.audience === "studio") {
           recipient = adminLineIds.join(",");
-          if (!adminLineIds.length) result = { skipped: "尚未綁定工作室 LINE（後台 → 網站內容 → 通知設定 → 綁定我的 LINE）" };
+          if (!adminLineIds.length) result = { skipped: `尚未綁定工作室 LINE（後台 → 網站內容 → 通知設定 → 綁定我的 LINE）${badLineIds.length ? `；「${badLineIds.join("、")}」不是 LINE userId，已略過` : ""}` };
           else {
             // 每位工作室人員都送一次；部分失敗時記錄是哪幾位
             const errs: string[] = [];

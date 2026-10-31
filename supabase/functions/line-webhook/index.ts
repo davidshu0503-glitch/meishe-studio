@@ -87,7 +87,8 @@ Deno.serve(async (req) => {
         await reply(ev.replyToken, "綁定碼錯誤或已過期，請回到網站後台「通知設定」重新產生綁定碼。");
         continue;
       }
-      const ids = String(notify.line_admin_ids || "").split(",").map((s) => s.trim()).filter(Boolean);
+      // 只保留真正的 LINE userId（U 開頭 33 碼）；之前誤填的手機號碼等會一併清掉
+      const ids = String(notify.line_admin_ids || "").split(",").map((s) => s.trim()).filter((s) => /^U[0-9a-f]{32}$/i.test(s));
       if (!ids.includes(userId)) ids.push(userId);
       const next = { ...notify, line_admin_ids: ids.join(","), admin_bind_code: "", admin_bind_expires: null };
       const { error } = await db.from("settings").update({ value: next }).eq("key", "notify");
