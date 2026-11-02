@@ -8,6 +8,12 @@ export function lineOaId(studio) {
   return raw.startsWith("@") ? raw : `@${raw}`;
 }
 
+/** 加入官方帳號好友的連結：手機會直接打開 LINE，電腦會顯示 QR Code 頁 */
+export function lineAddUrl(studio) {
+  const oa = lineOaId(studio);
+  return oa ? `https://line.me/R/ti/p/${encodeURIComponent(oa)}` : studio?.line_url || "";
+}
+
 /** 綁定訊息：LINE 官方帳號收到後會自動綁定（見 supabase/functions/line-webhook） */
 export const bindText = (code, phone) => `綁定 ${code} ${String(phone || "").replace(/\D/g, "")}`;
 

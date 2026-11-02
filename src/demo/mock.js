@@ -356,7 +356,7 @@ const RPC = {
     const name = (a.p_name || "").trim(), phone = normPhone(a.p_phone), email = normEmail(a.p_email);
     if (!name || name.length > 40) throw new DbError("請填寫姓名（40 字以內）");
     if (!phone || phone.length < 8 || phone.length > 15) throw new DbError("請填寫正確的電話號碼");
-    if (a.p_contact_method === "email" && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email || "")) throw new DbError("請填寫正確的 Email");
+    if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new DbError("請填寫正確的 Email");
     if (a.p_contact_method === "line" && !(a.p_line_id || "").trim()) throw new DbError("請填寫 LINE ID");
     const s = T.services.find((x) => x.id === a.p_service_id && ((x.active && x.bookable) || isAdmin()));
     if (!s) throw new DbError("此服務目前無法線上預約");

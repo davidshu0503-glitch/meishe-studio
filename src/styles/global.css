@@ -752,13 +752,9 @@ html.has-promo-bar body { padding-top: var(--bar-h); }
 .deposit-status.ok { background: var(--ok-bg); color: var(--ok); }
 .deposit-status span { color: var(--ink-2); }
 
-/* 浮動 LINE 諮詢按鈕 */
-.float-line { position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 90; display: grid; justify-items: end; gap: 10px; }
-.float-line.demo { bottom: calc(74px + env(safe-area-inset-bottom, 0px)); }
-.float-line-btn { display: inline-flex; align-items: center; gap: 8px; background: #06C755; color: #fff; padding: 12px 18px 12px 14px; border-radius: 40px; font-size: 15.5px; font-weight: 500; letter-spacing: .08em; box-shadow: 0 8px 24px rgba(6,199,85,.35), 0 2px 6px rgba(0,0,0,.15); text-decoration: none; transition: transform .2s, box-shadow .2s; }
-.float-line-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(6,199,85,.45), 0 2px 6px rgba(0,0,0,.15); color: #fff; }
-.float-line-tip { position: relative; background: #fff; color: var(--ink); border: 1px solid #CDEBD3; border-radius: 12px; padding: 10px 30px 10px 14px; font-size: 14.5px; line-height: 1.6; box-shadow: var(--shadow); max-width: 230px; animation: fade .3s; }
-.float-line-tip::after { content: ""; position: absolute; right: 26px; bottom: -7px; width: 12px; height: 12px; background: #fff; border-right: 1px solid #CDEBD3; border-bottom: 1px solid #CDEBD3; transform: rotate(45deg); }
-.float-line-tip-x { position: absolute; top: 4px; right: 6px; border: 0; background: none; color: var(--ink-3); font-size: 17px; line-height: 1; padding: 2px 4px; }
-@media (max-width: 700px) { .float-line { right: 14px; } .float-line-btn { width: 52px; height: 52px; padding: 0; justify-content: center; } .float-line-btn svg { width: 26px; height: 26px; } .float-line-btn span { display: none; } .float-line-tip { max-width: 200px; font-size: 13.5px; } .float-line-tip::after { right: 20px; } }
-@media print { .float-line { display: none; } }
+/* 預約表單：LINE ID 欄位旁固定的「LINE 諮詢」按鈕 */
+.line-field { display: flex; gap: 10px; align-items: stretch; }
+.line-field .input { flex: 1; min-width: 0; }
+.btn-line-consult { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; background: #06C755; color: #fff; border-radius: 4px; padding: 0 16px; font-size: 15px; font-weight: 500; letter-spacing: .06em; text-decoration: none; white-space: nowrap; }
+.btn-line-consult:hover { background: #05B34C; color: #fff; }
+@media (max-width: 420px) { .btn-line-consult { padding: 0 12px; font-size: 14px; } }

@@ -102,7 +102,7 @@ begin
   if coalesce(trim(p_name), '') = '' or length(p_name) > 40 then raise exception '請填寫姓名（40 字以內）'; end if;
   if v_phone is null or length(v_phone) < 8 or length(v_phone) > 15 then raise exception '請填寫正確的電話號碼'; end if;
   if p_contact_method not in ('email','line') then raise exception '聯絡方式錯誤'; end if;
-  if p_contact_method = 'email' and (v_email is null or v_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$') then raise exception '請填寫正確的 Email'; end if;
+  if v_email is not null and v_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' then raise exception '請填寫正確的 Email'; end if;  -- Email 選填，有填才檢查格式
   if p_contact_method = 'line' and coalesce(trim(p_line_id), '') = '' then raise exception '請填寫 LINE ID'; end if;
   if length(coalesce(p_note, '')) > 500 then raise exception '備註請在 500 字以內'; end if;
 

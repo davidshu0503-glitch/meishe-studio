@@ -6,8 +6,7 @@ import { errMsg, kickNotifications, supabase } from "../lib/supabase";
 import { addDays, depositDue, depositOf, fmtDate, money, normPhone, twDate, WEEKDAYS, weekday } from "../lib/utils";
 import { Field, PageHero, useTitle } from "../components/ui";
 import { appliesTo, calcAmount, discountLabel } from "../lib/promos";
-import LineBind from "../components/LineBind";
-import { lineAddUrl } from "../components/FloatingLine";
+import LineBind, { lineAddUrl } from "../components/LineBind";
 
 const STEPS = ["選擇服務", "選擇時段", "填寫資料", "確認送出"];
 
@@ -130,7 +129,7 @@ export default function Booking() {
     if (!form.name.trim()) e.name = "請填寫姓名";
     const p = normPhone(form.phone);
     if (p.length < 8 || p.length > 15) e.phone = "請填寫正確的電話號碼";
-    if (form.contactMethod === "email" && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) e.email = "請填寫正確的 Email";
+    if (form.email.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) e.email = "Email 格式不正確（不填也可以）";
     if (form.contactMethod === "line" && !form.lineId.trim()) e.lineId = "請填寫 LINE ID";
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -140,7 +139,7 @@ export default function Booking() {
     setSubmitting(true); setSubmitError("");
     const base = {
       p_service_id: form.serviceId, p_date: form.date, p_time: form.time, p_name: form.name.trim(), p_phone: form.phone.trim(),
-      p_contact_method: form.contactMethod, p_email: form.contactMethod === "email" ? form.email.trim() : (form.email.trim() || null),
+      p_contact_method: form.contactMethod, p_email: form.email.trim() || null,
       p_line_id: form.contactMethod === "line" ? form.lineId.trim() : null,
     };
     const usePromo = promo && quote?.ok;
@@ -199,7 +198,7 @@ export default function Booking() {
                   {cfg.deposit?.policy && <div className="small muted" style={{ whiteSpace: "pre-line", marginTop: 8 }}><b>訂金說明</b><br />{cfg.deposit.policy}</div>}
                 </div>
               ) : cfg.payment_info && <div className="alert alert-info" style={{ textAlign: "left", whiteSpace: "pre-line" }}><b>付款方式</b><br />{cfg.payment_info}</div>}
-              <p className="small muted mt-2">{form.contactMethod === "email" ? `確認通知將寄至 ${form.email}。` : ""}{cfg.notice}</p>
+              <p className="small muted mt-2">{form.email.trim() ? `確認通知將寄至 ${form.email.trim()}。` : ""}{cfg.notice}</p>
               <div className="flex flex-wrap mt-3" style={{ justifyContent: "center" }}>
                 <a className="btn btn-ghost btn-sm" href={gcal} target="_blank" rel="noreferrer">加入 Google 行事曆</a>
                 <Link className="btn btn-sm" to="/">回首頁</Link>
@@ -292,10 +291,20 @@ export default function Booking() {
                       </div>
                     </Field>
                     {form.contactMethod === "email" ? (
-                      <Field label="Email *" error={errors.email} full><input className={`input ${errors.email ? "err" : ""}`} type="email" value={form.email} maxLength={120} onChange={(e) => set("email", e.target.value)} autoComplete="email" /></Field>
+                      <Field label="Email（選填）" error={errors.email} full hint="填了會收到預約確認與拍攝前一天提醒信"><input className={`input ${errors.email ? "err" : ""}`} type="email" value={form.email} maxLength={120} onChange={(e) => set("email", e.target.value)} autoComplete="email" /></Field>
                     ) : (
                       <>
-                        <Field label="LINE ID *" error={errors.lineId} hint={<>送出後點一下「開啟 LINE 自動通知」，之後所有通知都會自動傳到 LINE。{lineUrl && <> 有問題想先問？<a href={lineUrl} target="_blank" rel="noreferrer" style={{ color: "#06A548", fontWeight: 500 }}>加 LINE 好友諮詢</a></>}</>}><input className={`input ${errors.lineId ? "err" : ""}`} value={form.lineId} maxLength={60} onChange={(e) => set("lineId", e.target.value)} /></Field>
+                        <Field label="LINE ID *" error={errors.lineId} hint="送出後點一下「開啟 LINE 自動通知」，之後所有通知都會自動傳到 LINE">
+                          <div className="line-field">
+                            <input className={`input ${errors.lineId ? "err" : ""}`} value={form.lineId} maxLength={60} onChange={(e) => set("lineId", e.target.value)} />
+                            {lineUrl && (
+                              <a className="btn-line-consult" href={lineUrl} target="_blank" rel="noreferrer" title="加入官方帳號好友，直接詢問">
+                                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 3C6.48 3 2 6.6 2 11.05c0 2.6 1.53 4.9 3.9 6.37-.17.9-.62 2.4-1.5 3.38 0 0 2.97-.24 5.08-1.9.82.17 1.66.25 2.52.25 5.52 0 10-3.6 10-8.05S17.52 3 12 3Z" /></svg>
+                                LINE 諮詢
+                              </a>
+                            )}
+                          </div>
+                        </Field>
                         <Field label="Email（選填，接收通知信）"><input className="input" type="email" value={form.email} maxLength={120} onChange={(e) => set("email", e.target.value)} /></Field>
                       </>
                     )}
@@ -324,7 +333,7 @@ export default function Booking() {
                     <dt className="muted">拍攝時間</dt><dd style={{ margin: 0 }}>{fmtDate(form.date)} {form.time}</dd>
                     <dt className="muted">姓名</dt><dd style={{ margin: 0 }}>{form.name}</dd>
                     <dt className="muted">電話</dt><dd style={{ margin: 0 }}>{form.phone}</dd>
-                    <dt className="muted">{form.contactMethod === "email" ? "Email" : "LINE ID"}</dt><dd style={{ margin: 0 }}>{form.contactMethod === "email" ? form.email : form.lineId}</dd>
+                    <dt className="muted">{form.contactMethod === "email" ? "Email" : "LINE ID"}</dt><dd style={{ margin: 0 }}>{form.contactMethod === "email" ? (form.email.trim() || "未填（以電話聯絡）") : form.lineId}</dd>
                     {deposit > 0 && <><dt className="muted">預付訂金</dt><dd style={{ margin: 0 }}><b>{money(deposit)}</b>（請於 {fmtDate(due)} 前付款）<div className="small muted">尾款 {money(payable - deposit)} 於拍攝當天支付</div></dd></>}
                     {promo && <><dt className="muted">優惠</dt><dd style={{ margin: 0 }}>{promo.title}（代碼 {promo.code}）{quote && !quote.ok ? <div className="err-text">{quote.error}，送出時不會套用</div> : quote?.legacy && <div className="small muted">折扣金額以工作室確認為準</div>}</dd></>}
                     {form.note && <><dt className="muted">備註</dt><dd style={{ margin: 0, whiteSpace: "pre-line" }}>{form.note}</dd></>}
