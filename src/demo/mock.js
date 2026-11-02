@@ -35,7 +35,7 @@ function seed() {
   T.profiles.push({ id: admin.id, role: "admin" }, { id: member.id, role: "member" });
 
   T.settings.push(
-    { key: "studio", value: { ...DEFAULT_STUDIO, email: "hello@gime.studio", line_oa_id: "@gime-demo" }, is_public: true },
+    { key: "studio", value: { ...DEFAULT_STUDIO, email: "hello@gime.studio", line_oa_id: "@gime-demo", line_consult_id: "89728189" }, is_public: true },
     { key: "hero", value: WORK_HERO, is_public: true },
     { key: "booking", value: { ...DEFAULT_BOOKING, payment_info: "（示範）國泰世華 013｜帳號 000-00-000000-0｜戶名 即美創畫攝影",
       deposit: { type: "percent", value: 30, days: 3, policy: "（示範）訂金說明請在後台「網站內容 → 預約設定」填寫，例如改期與退款規則。" } }, is_public: true },

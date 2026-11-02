@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useSite } from "../lib/site";
+import { lineConsultUrl } from "../components/LineBind";
 import { imgUrl } from "../lib/supabase";
 import { PageHero, Reveal, useTitle } from "../components/ui";
 
@@ -32,6 +33,7 @@ export default function About() {
             <div className="svc"><div className="en">ONLINE</div><h3>線上</h3>
               <div className="links small" style={{ display: "grid", gap: 6 }}>
                 {studio.email && <a href={`mailto:${studio.email}`}>{studio.email}</a>}
+                {studio.line_consult_id && <a href={lineConsultUrl(studio)} target="_blank" rel="noreferrer">LINE ID：{studio.line_consult_id}（點此加好友）</a>}
                 {studio.line_url && <a href={studio.line_url} target="_blank" rel="noreferrer">LINE 官方帳號 →</a>}
                 {studio.instagram && <a href={studio.instagram} target="_blank" rel="noreferrer">Instagram →</a>}
                 {studio.facebook && <a href={studio.facebook} target="_blank" rel="noreferrer">Facebook →</a>}

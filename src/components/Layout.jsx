@@ -4,6 +4,7 @@ import { useToast } from "./ui";
 import { useSite } from "../lib/site";
 import { useAuth } from "../lib/auth";
 import { PromoBar, PromoPopup } from "./Promo";
+import { lineConsultUrl } from "./LineBind";
 
 function Header() {
   const { pathname } = useLocation();
@@ -95,6 +96,7 @@ function Footer() {
             <div className="links">
               {studio.phone && <a href={`tel:${studio.phone.replace(/[^\d+]/g, "")}`}>電話　{studio.phone}</a>}
               {studio.email && <a href={`mailto:${studio.email}`}>Email　{studio.email}</a>}
+              {studio.line_consult_id && <a href={lineConsultUrl(studio)} target="_blank" rel="noreferrer">LINE ID　{studio.line_consult_id}</a>}
               {studio.address && <span>地址　{studio.address}</span>}
               {studio.hours && <span>時間　{studio.hours}</span>}
             </div>
