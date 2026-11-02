@@ -68,7 +68,7 @@ function StudioTab() {
     if (error) return toast(errMsg(error), "err");
     toast("工作室資訊已更新"); reload();
   };
-  const fields = [["name", "工作室名稱"], ["name_en", "英文名稱"], ["tagline", "標語（英文）"], ["hero_title", "首頁主標題（留空則使用每張輪播的標題）"], ["slogan", "中文標語"], ["phone", "電話"], ["email", "公開 Email"], ["address", "地址"], ["hours", "營業時間"], ["line_oa_id", "LINE 官方帳號 ID（@ 開頭，例如 @123abcde；客人一鍵綁定 LINE 通知用）"], ["line_url", "LINE 官方帳號網址"], ["instagram", "Instagram 網址"], ["facebook", "Facebook 網址"], ["site_url", "網站網址（通知信連結用）"], ["watermark", "作品浮水印文字"], ["map_embed", "Google 地圖嵌入網址（選填）"]];
+  const fields = [["name", "工作室名稱"], ["name_en", "英文名稱"], ["tagline", "標語（英文）"], ["hero_title", "首頁主標題（留空則使用每張輪播的標題）"], ["slogan", "中文標語"], ["phone", "電話"], ["email", "公開 Email"], ["address", "地址"], ["hours", "營業時間"], ["line_oa_id", "LINE 官方帳號 ID（@ 開頭，例如 @123abcde；客人一鍵綁定 LINE 通知用）"], ["line_consult_id", "LINE 諮詢 ID（預約表單「LINE 諮詢」按鈕，客人按了直接加這個 LINE 好友，例如 89728189）"], ["line_url", "LINE 官方帳號網址"], ["instagram", "Instagram 網址"], ["facebook", "Facebook 網址"], ["site_url", "網站網址（通知信連結用）"], ["watermark", "作品浮水印文字"], ["map_embed", "Google 地圖嵌入網址（選填）"]];
   return (
     <div className="panel">
       <div className="form-grid">

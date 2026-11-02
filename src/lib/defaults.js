@@ -15,6 +15,7 @@ export const DEFAULT_STUDIO = {
   email: "",
   hours: "預約制｜每日 10:00 – 18:00",
   line_url: "",
+  line_consult_id: "",
   instagram: "",
   facebook: "",
   map_embed: "",

@@ -14,6 +14,17 @@ export function lineAddUrl(studio) {
   return oa ? `https://line.me/R/ti/p/${encodeURIComponent(oa)}` : studio?.line_url || "";
 }
 
+/**
+ * 「LINE 諮詢」按鈕連結：
+ * 後台有填「LINE 諮詢 ID」（個人 LINE ID）→ 直接加這個 LINE 好友（line.me/ti/p/~ID）
+ * 沒填 → 改加官方帳號好友
+ */
+export function lineConsultUrl(studio) {
+  const id = String(studio?.line_consult_id || "").trim().replace(/^~/, "");
+  if (id) return `https://line.me/ti/p/~${encodeURIComponent(id)}`;
+  return lineAddUrl(studio);
+}
+
 /** 綁定訊息：LINE 官方帳號收到後會自動綁定（見 supabase/functions/line-webhook） */
 export const bindText = (code, phone) => `綁定 ${code} ${String(phone || "").replace(/\D/g, "")}`;
 

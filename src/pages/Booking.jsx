@@ -6,7 +6,7 @@ import { errMsg, kickNotifications, supabase } from "../lib/supabase";
 import { addDays, depositDue, depositOf, fmtDate, money, normPhone, twDate, WEEKDAYS, weekday } from "../lib/utils";
 import { Field, PageHero, useTitle } from "../components/ui";
 import { appliesTo, calcAmount, discountLabel } from "../lib/promos";
-import LineBind, { lineAddUrl } from "../components/LineBind";
+import LineBind, { lineConsultUrl } from "../components/LineBind";
 
 const STEPS = ["選擇服務", "選擇時段", "填寫資料", "確認送出"];
 
@@ -44,7 +44,7 @@ function Calendar({ month, setMonth, min, max, selected, onSelect, isDisabled, i
 export default function Booking() {
   useTitle("線上預約");
   const { services, booking: cfg, online, promotions, studio } = useSite();
-  const lineUrl = lineAddUrl(studio);
+  const lineUrl = lineConsultUrl(studio);
   const { customer, user } = useAuth();
   const [params] = useSearchParams();
   const bookable = services.filter((s) => s.bookable && s.tier !== "hidden");
@@ -298,7 +298,7 @@ export default function Booking() {
                           <div className="line-field">
                             <input className={`input ${errors.lineId ? "err" : ""}`} value={form.lineId} maxLength={60} onChange={(e) => set("lineId", e.target.value)} />
                             {lineUrl && (
-                              <a className="btn-line-consult" href={lineUrl} target="_blank" rel="noreferrer" title="加入官方帳號好友，直接詢問">
+                              <a className="btn-line-consult" href={lineUrl} target="_blank" rel="noreferrer" title="加 LINE 好友，直接詢問">
                                 <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 3C6.48 3 2 6.6 2 11.05c0 2.6 1.53 4.9 3.9 6.37-.17.9-.62 2.4-1.5 3.38 0 0 2.97-.24 5.08-1.9.82.17 1.66.25 2.52.25 5.52 0 10-3.6 10-8.05S17.52 3 12 3Z" /></svg>
                                 LINE 諮詢
                               </a>
