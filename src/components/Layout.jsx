@@ -4,6 +4,7 @@ import { useToast } from "./ui";
 import { useSite } from "../lib/site";
 import { useAuth } from "../lib/auth";
 import { PromoBar, PromoPopup } from "./Promo";
+import FloatingLine from "./FloatingLine";
 
 function Header() {
   const { pathname } = useLocation();
@@ -130,6 +131,7 @@ export default function Layout() {
       <main><Outlet /></main>
       <Footer />
       <PromoPopup />
+      <FloatingLine />
     </>
   );
 }

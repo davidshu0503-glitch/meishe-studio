@@ -7,6 +7,7 @@ import { addDays, depositDue, depositOf, fmtDate, money, normPhone, twDate, WEEK
 import { Field, PageHero, useTitle } from "../components/ui";
 import { appliesTo, calcAmount, discountLabel } from "../lib/promos";
 import LineBind from "../components/LineBind";
+import { lineAddUrl } from "../components/FloatingLine";
 
 const STEPS = ["選擇服務", "選擇時段", "填寫資料", "確認送出"];
 
@@ -43,7 +44,8 @@ function Calendar({ month, setMonth, min, max, selected, onSelect, isDisabled, i
 
 export default function Booking() {
   useTitle("線上預約");
-  const { services, booking: cfg, online, promotions } = useSite();
+  const { services, booking: cfg, online, promotions, studio } = useSite();
+  const lineUrl = lineAddUrl(studio);
   const { customer, user } = useAuth();
   const [params] = useSearchParams();
   const bookable = services.filter((s) => s.bookable && s.tier !== "hidden");
@@ -293,7 +295,7 @@ export default function Booking() {
                       <Field label="Email *" error={errors.email} full><input className={`input ${errors.email ? "err" : ""}`} type="email" value={form.email} maxLength={120} onChange={(e) => set("email", e.target.value)} autoComplete="email" /></Field>
                     ) : (
                       <>
-                        <Field label="LINE ID *" error={errors.lineId} hint="送出後點一下「開啟 LINE 自動通知」，之後所有通知都會自動傳到 LINE"><input className={`input ${errors.lineId ? "err" : ""}`} value={form.lineId} maxLength={60} onChange={(e) => set("lineId", e.target.value)} /></Field>
+                        <Field label="LINE ID *" error={errors.lineId} hint={<>送出後點一下「開啟 LINE 自動通知」，之後所有通知都會自動傳到 LINE。{lineUrl && <> 有問題想先問？<a href={lineUrl} target="_blank" rel="noreferrer" style={{ color: "#06A548", fontWeight: 500 }}>加 LINE 好友諮詢</a></>}</>}><input className={`input ${errors.lineId ? "err" : ""}`} value={form.lineId} maxLength={60} onChange={(e) => set("lineId", e.target.value)} /></Field>
                         <Field label="Email（選填，接收通知信）"><input className="input" type="email" value={form.email} maxLength={120} onChange={(e) => set("email", e.target.value)} /></Field>
                       </>
                     )}
