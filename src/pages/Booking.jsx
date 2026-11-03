@@ -7,6 +7,7 @@ import { addDays, depositDue, depositOf, fmtDate, money, normPhone, twDate, WEEK
 import { Field, PageHero, useTitle } from "../components/ui";
 import { appliesTo, calcAmount, discountLabel } from "../lib/promos";
 import LineBind, { lineConsultUrl } from "../components/LineBind";
+import { trackEvent } from "../lib/analytics";
 
 const STEPS = ["選擇服務", "選擇時段", "填寫資料", "確認送出"];
 
@@ -156,6 +157,8 @@ export default function Booking() {
       return;
     }
     kickNotifications();
+    // 讓 Google Analytics 知道哪個管道帶來預約
+    trackEvent("booking_complete", { service: form.serviceId, value: data?.amount || 0, currency: "TWD", promo: usePromo ? promo.code : "" });
     // 訂金以試算顯示；資料庫已依同一規則寫入訂單
     const dep = depositOf(data.amount, cfg);
     setDone({ ...data, deposit: dep, deposit_due: depositDue(data.date, cfg) });

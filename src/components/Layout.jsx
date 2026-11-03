@@ -5,6 +5,7 @@ import { useSite } from "../lib/site";
 import { useAuth } from "../lib/auth";
 import { PromoBar, PromoPopup } from "./Promo";
 import { lineConsultUrl } from "./LineBind";
+import Seo from "./Seo";
 
 function Header() {
   const { pathname } = useLocation();
@@ -129,6 +130,7 @@ export default function Layout() {
   return (
     <>
       <Header />
+      <Seo />
       <main><Outlet /></main>
       <Footer />
       <PromoPopup />
