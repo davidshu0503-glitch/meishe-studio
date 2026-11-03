@@ -41,7 +41,7 @@ export const DEFAULT_BOOKING = {
 export const DEFAULT_CATEGORIES = WORK_CATEGORIES;
 
 export const DEFAULT_SERVICES = [
-  { id: "id_photo", tier: "entry", name: "證件照", subtitle: "ID PHOTO", description: "專業燈光與修圖，符合各式證件規格。", price: 300, price_note: "", duration_label: "約 30 分鐘", features: ["現場挑選", "基礎修圖", "電子檔交付"], featured: false, bookable: true, sort: 1 },
+  { id: "id_photo", tier: "entry", name: "證件照", subtitle: "ID PHOTO", description: "專業燈光與修圖，符合各式證件規格。", price: 400, price_note: "", duration_label: "約 30 分鐘", features: ["現場挑選", "基礎修圖", "電子檔交付"], featured: false, bookable: true, sort: 1 },
   { id: "portrait", tier: "entry", name: "個人寫真", subtitle: "PORTRAIT", description: "一對一引導拍攝，找到最自在、最好看的自己。", price: 6800, price_note: "／2 小時", duration_label: "約 2 小時", features: ["1 位攝影師", "1 個場景", "精修 15 張", "線上選片交件"], featured: true, bookable: true, sort: 2 },
   { id: "family", tier: "entry", name: "全家福", subtitle: "FAMILY", description: "為家人留下溫暖自然的合影。", price: 4500, price_note: "", duration_label: "約 1.5 小時", features: ["最多 8 人", "精修 10 張", "線上選片交件"], featured: false, bookable: true, sort: 3 },
   { id: "business", tier: "entry", name: "商業形象照", subtitle: "BUSINESS", description: "個人品牌、企業主管、履歷形象照。", price: 3500, price_note: "", duration_label: "約 1 小時", features: ["2 套服裝", "精修 5 張", "商用授權"], featured: false, bookable: true, sort: 4 },

@@ -843,7 +843,7 @@ insert into public.categories (slug, name, sort) values
 on conflict (slug) do nothing;
 
 insert into public.services (id, name, subtitle, description, price, price_note, duration_label, features, featured, bookable, sort) values
-  ('id_photo','證件照','ID PHOTO','專業燈光與修圖，符合各式證件規格。',300,'','約 30 分鐘', array['現場挑選','基礎修圖','電子檔交付'],false,true,1),
+  ('id_photo','證件照','ID PHOTO','專業燈光與修圖，符合各式證件規格。',400,'','約 30 分鐘', array['現場挑選','基礎修圖','電子檔交付'],false,true,1),
   ('portrait','個人寫真','PORTRAIT','一對一引導拍攝，找到最自在、最好看的自己。',6800,'／2 小時','約 2 小時', array['1 位攝影師','1 個場景','精修 15 張','線上選片交件'],true,true,2),
   ('family','全家福','FAMILY','為家人留下溫暖自然的合影。',4500,'','約 1.5 小時', array['最多 8 人','精修 10 張','線上選片交件'],false,true,3),
   ('business','商業形象照','BUSINESS','個人品牌、企業主管、履歷形象照。',3500,'','約 1 小時', array['2 套服裝','精修 5 張','商用授權'],false,true,4),
