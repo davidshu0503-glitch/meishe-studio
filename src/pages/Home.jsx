@@ -142,6 +142,9 @@ export default function Home() {
     <>
       <Hero />
 
+      {/* 攝影服務類型：一排 6 張照片卡片，緊接在首頁大圖下方（內容在 components/ServiceTypes.jsx） */}
+      <ServiceTypes />
+
       {/* 限時優惠（行銷管理 → 優惠活動；沒有進行中的活動就不顯示） */}
       {offers.length > 0 && (
         <section className="section-tight offer-strip" style={{ padding: "36px 0" }}>
@@ -240,9 +243,6 @@ export default function Home() {
           </section>
         );
       })}
-
-      {/* 攝影服務類型：一排 6 張照片卡片，放在「風格加購」之後（內容在 components/ServiceTypes.jsx） */}
-      <ServiceTypes />
 
       {/* 怎麼買：從入門到典藏 */}
       <section className="section-tight ladder-sec">
