@@ -6,6 +6,7 @@ import { priceNote, priceText, TIER_ORDER, TIERS } from "../lib/utils";
 import { Reveal, useTitle } from "../components/ui";
 import Protect, { Watermark } from "../components/Protect";
 import StyleShowcase from "../components/StyleShowcase";
+import ServiceTypes from "../components/ServiceTypes";
 import { OfferCard, PromoLink } from "../components/Promo";
 import { discountLabel } from "../lib/promos";
 
@@ -239,6 +240,9 @@ export default function Home() {
           </section>
         );
       })}
+
+      {/* 攝影服務類型：一排 6 張照片卡片，放在「風格加購」之後（內容在 components/ServiceTypes.jsx） */}
+      <ServiceTypes />
 
       {/* 怎麼買：從入門到典藏 */}
       <section className="section-tight ladder-sec">

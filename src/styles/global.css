@@ -758,3 +758,21 @@ html.has-promo-bar body { padding-top: var(--bar-h); }
 .btn-line-consult { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; background: #06C755; color: #fff; border-radius: 4px; padding: 0 16px; font-size: 15px; font-weight: 500; letter-spacing: .06em; text-decoration: none; white-space: nowrap; }
 .btn-line-consult:hover { background: #05B34C; color: #fff; }
 @media (max-width: 420px) { .btn-line-consult { padding: 0 12px; font-size: 14px; } }
+
+/* ---------- 首頁：攝影服務類型（ServiceTypes.jsx） ---------- */
+.svc-types { --svc-brown: #6E4A1F; background: #fff; padding: 72px 0 64px; }
+.svc-types .wrap { max-width: 1440px; }
+.svc-types-head { text-align: center; max-width: 980px; margin: 0 auto 40px; }
+.svc-types-kicker { color: var(--svc-brown); font-size: 15px; letter-spacing: 0.24em; margin-bottom: 10px; }
+.svc-types-title { color: var(--svc-brown); font-family: var(--serif); font-weight: 500; font-size: clamp(26px, 3.6vw, 46px); letter-spacing: 0.08em; line-height: 1.3; }
+.svc-types-title span { display: inline-block; }
+.svc-types-sub { color: var(--ink-3); font-size: 16px; margin-top: 18px; line-height: 1.9; }
+.svc-types-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.svc-type { display: block; text-decoration: none; color: var(--ink); }
+.svc-type-img { position: relative; aspect-ratio: 1 / 1; border-radius: 14px; overflow: hidden; background: #f2efe9; }
+.svc-type-img img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .6s ease; }
+.svc-type:hover .svc-type-img img { transform: scale(1.05); }
+.svc-type-name { text-align: center; font-family: var(--serif); font-weight: 700; font-size: 17px; letter-spacing: 0.12em; margin-top: 14px; color: var(--ink); }
+.svc-type:hover .svc-type-name { color: var(--svc-brown); }
+@media (max-width: 960px) { .svc-types-grid { grid-template-columns: repeat(3, 1fr); gap: 12px; row-gap: 24px; } }
+@media (max-width: 560px) { .svc-types { padding: 52px 0 44px; } .svc-types-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; row-gap: 20px; } .svc-type-name { font-size: 15.5px; } }
