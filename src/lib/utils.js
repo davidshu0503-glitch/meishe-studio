@@ -107,7 +107,7 @@ export function csvDownload(filename, rows) {
 export const TIERS = {
   main: { name: "主力", label: "典藏藝術肖像", en: "Signature Art", desc: "金箔、厚塗油畫、雕塑材質。適合做成大幅掛畫，掛在客廳傳家的作品。" },
   addon: { name: "加值", label: "風格加購", en: "Style Add-ons", desc: "同一組照片再轉成奇幻、水彩、水墨、普普等風格，拍一次就能擁有多種版本。" },
-  entry: { name: "引流", label: "入門拍攝", en: "Start Here", desc: "形象照、證件照、孕婦寫真、全家福。每件藝術作品，都從一次好好的拍攝開始。" },
+  entry: { name: "引流", label: "影棚拍攝", en: "Start Here", desc: "形象照、證件照、孕婦寫真、全家福。每件藝術作品，都從一次好好的拍攝開始。" },
   hidden: { name: "不顯示", label: "", en: "", desc: "" },
 };
 export const TIER_ORDER = ["entry", "main", "addon"];

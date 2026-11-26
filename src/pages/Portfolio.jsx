@@ -32,7 +32,7 @@ export default function Portfolio() {
   const [params, setParams] = useSearchParams();
   const catParam = params.get("cat");
   const catRow = categories.find((c) => c.slug === catParam);
-  // 從分類推回分層；沒有指定時預設顯示第一個分層（入門拍攝）
+  // 從分類推回分層；沒有指定時預設顯示第一個分層（影棚拍攝）
   const firstTier = TIER_ORDER.find((t) => categories.some((c) => c.tier === t));
   const tier = catRow?.tier || params.get("tier") || firstTier || (styleSets.length ? "oneshot" : "all");
   const cat = catRow ? catRow.slug : "all";
@@ -62,7 +62,7 @@ export default function Portfolio() {
     go({ tier: cat === "all" && tier !== "all" ? tier : "", cat: cat !== "all" ? cat : "", p: p > 0 ? String(p + 1) : "" });
     window.scrollTo({ top: 260, behavior: "smooth" });
   };
-  // 頁籤順序：入門拍攝（引流）→ 一拍多風格 → 典藏藝術肖像（主力）→ 風格加購（加值）→ 全部
+  // 頁籤順序：影棚拍攝（引流）→ 一拍多風格 → 典藏藝術肖像（主力）→ 風格加購（加值）→ 全部
   const tierTabs = TIER_ORDER.filter((t) => visibleCats.some((c) => c.tier === t)).map((t) => [t, TIERS[t].label]);
   const tabs = [
     ...tierTabs.slice(0, 1),
@@ -73,7 +73,7 @@ export default function Portfolio() {
 
   return (
     <>
-      <PageHero eyebrow="Portfolio" title="作品集" sub="入門拍攝・一拍多風格・典藏藝術肖像・風格加購" />
+      <PageHero eyebrow="Portfolio" title="作品集" sub="影棚拍攝・一拍多風格・典藏藝術肖像・風格加購" />
       <section className="section-tight">
         <div className="wrap">
           <div className="tier-tabs" role="tablist">

@@ -43,17 +43,17 @@ export default function Services() {
     </Reveal>
   );
 
-  // 一拍多風格說明：放在「入門拍攝」之後，說明拍完還能加購哪些風格
+  // 一拍多風格說明：放在「影棚拍攝」之後，說明拍完還能加購哪些風格
   const oneshotBox = styleSets.length > 0 ? (
             <div className="svc-oneshot">
               <div>
                 <div className="kicker">One Shoot · Many Styles</div>
                 <h2 className="title-md" style={{ margin: "8px 0 12px" }}>一拍多風格怎麼算？</h2>
                 <p className="small" style={{ color: "var(--ink-2)", lineHeight: 2 }}>
-                  先選一個<b>入門拍攝</b>方案，拍完選片時再決定要不要<b>加購風格</b>；最喜歡的那張，可以再做成<b>典藏掛畫</b>。不用一次決定全部，看到成果再加。
+                  先選一個<b>影棚拍攝</b>方案，拍完選片時再決定要不要<b>加購風格</b>；最喜歡的那張，可以再做成<b>典藏掛畫</b>。不用一次決定全部，看到成果再加。
                 </p>
                 <ol className="mini-ladder">
-                  <li><a href="#entry">入門拍攝</a></li><li><a href="#main">典藏藝術肖像</a></li><li><a href="#addon">風格加購</a></li>
+                  <li><a href="#entry">影棚拍攝</a></li><li><a href="#main">典藏藝術肖像</a></li><li><a href="#addon">風格加購</a></li>
                 </ol>
               </div>
               <StyleShowcase sets={styleSets.slice(0, 1)} watermark={studio.watermark} compact />
