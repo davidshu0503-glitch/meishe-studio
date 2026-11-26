@@ -11,7 +11,7 @@ import { OfferCard, PromoLink } from "../components/Promo";
 import { discountLabel } from "../lib/promos";
 
 const HERO_MS = 6000;
-// 首頁區塊順序：入門拍攝（引流）放第一，接著一拍多風格，再依 主力 → 加值
+// 首頁區塊順序：影棚拍攝（引流）放第一，接著一拍多風格，再依 主力 → 加值
 const HOME_ORDER = [TIER_ORDER[0], "oneshot", ...TIER_ORDER.slice(1)];
 
 function Hero() {
@@ -103,9 +103,6 @@ function CategoryCard({ c, cover, count, watermark, big }) {
   );
 }
 
-// 首頁分層標題可另外指定（只影響首頁，其他頁面仍用 TIERS 的名稱）
-const HOME_TIER_TITLE = { entry: "影棚拍攝" };
-
 function TierHead({ tier, index }) {
   const t = TIERS[tier];
   return (
@@ -113,7 +110,7 @@ function TierHead({ tier, index }) {
       <div className="tier-no">{String(index).padStart(2, "0")}</div>
       <div>
         <div className="eyebrow">{t.en}</div>
-        <h2 className="title-lg">{HOME_TIER_TITLE[tier] || t.label}</h2>
+        <h2 className="title-lg">{t.label}</h2>
         <p className="lead">{t.desc}</p>
       </div>
     </Reveal>
@@ -161,7 +158,7 @@ export default function Home() {
         </section>
       )}
 
-      {/* 依分層順序排列：引流（入門拍攝）→ 一拍多風格 → 主力 → 加值 */}
+      {/* 依分層順序排列：引流（影棚拍攝）→ 一拍多風格 → 主力 → 加值 */}
       {HOME_ORDER.map((key) => {
         if (key === "oneshot") {
           if (!hasSets) return null;
@@ -215,7 +212,7 @@ export default function Home() {
                     ))}
                   </div>
                 )}
-                <div className="center mt-3"><Link to="/services#entry" className="btn-link small">看所有入門拍攝方案與價格 →</Link></div>
+                <div className="center mt-3"><Link to="/services#entry" className="btn-link small">看所有影棚拍攝方案與價格 →</Link></div>
               </div>
             </section>
           );
@@ -253,7 +250,7 @@ export default function Home() {
           <Reveal className="sec-head"><div className="eyebrow">From a photo to an heirloom</div><h2 className="title-lg">從一次拍攝，到一幅傳家作品</h2></Reveal>
           <ol className="ladder">
             {[
-              ["入門拍攝", "形象照、證件照、孕婦寫真、全家福", "/services#entry"],
+              ["影棚拍攝", "形象照、證件照、孕婦寫真、全家福", "/services#entry"],
               ["風格加購", "同一組照片加做 1–3 種藝術風格", "/services#addon"],
               ["典藏掛畫", "最喜歡的一張輸出成大幅掛畫", "/services#main"],
               ["典藏套組", "原片＋多風格＋掛畫＋相本，一次完成", "/services#main"],

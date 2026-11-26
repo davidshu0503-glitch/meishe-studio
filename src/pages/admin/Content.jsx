@@ -351,7 +351,7 @@ function CategoriesTab() {
   };
   return (
     <div className="panel">
-      <p className="small muted mb-2">網站的首頁與作品集會依分層排序：<b>一拍多風格 → 主力 → 加值 → 引流</b>。前台顯示給客人的名稱是「典藏藝術肖像／風格加購／入門拍攝」，不會出現「主力、引流」等字眼。選「不顯示」的分類會從網站隱藏。</p>
+      <p className="small muted mb-2">網站的首頁與作品集會依分層排序：<b>一拍多風格 → 主力 → 加值 → 引流</b>。前台顯示給客人的名稱是「典藏藝術肖像／風格加購／影棚拍攝」，不會出現「主力、引流」等字眼。選「不顯示」的分類會從網站隱藏。</p>
       {TIER_KEYS.map((t) => {
         const idx = list.map((c, i) => [c, i]).filter(([c]) => (c.tier || "addon") === t);
         return (
