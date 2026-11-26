@@ -103,6 +103,9 @@ function CategoryCard({ c, cover, count, watermark, big }) {
   );
 }
 
+// 首頁分層標題可另外指定（只影響首頁，其他頁面仍用 TIERS 的名稱）
+const HOME_TIER_TITLE = { entry: "影棚拍攝" };
+
 function TierHead({ tier, index }) {
   const t = TIERS[tier];
   return (
@@ -110,7 +113,7 @@ function TierHead({ tier, index }) {
       <div className="tier-no">{String(index).padStart(2, "0")}</div>
       <div>
         <div className="eyebrow">{t.en}</div>
-        <h2 className="title-lg">{t.label}</h2>
+        <h2 className="title-lg">{HOME_TIER_TITLE[tier] || t.label}</h2>
         <p className="lead">{t.desc}</p>
       </div>
     </Reveal>
