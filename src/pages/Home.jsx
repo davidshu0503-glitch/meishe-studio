@@ -34,52 +34,60 @@ function Hero() {
 
   return (
     <section className={`hero ${promo ? "promo-on" : ""}`} aria-label="主視覺">
-      {hero.map((h, k) => (
-        <div key={k} className={`hero-slide ${k === i ? "on" : ""} ${h.promo ? "is-promo" : ""}`} aria-hidden={k !== i}>
-          <img src={imgUrl(h.image, "portfolio")} alt={h.headline || h.promo?.title || ""} loading={k === 0 ? "eager" : "lazy"} />
-        </div>
-      ))}
-      {promo && (
-        <div className="hero-promo" key={`p${i}`}>
-          {promo.badge && <span className="promo-badge hero-anim">{promo.badge}</span>}
-          <h2 className="hero-anim" style={{ animationDelay: ".1s" }}>{promo.title}</h2>
-          {promo.subtitle && <p className="hero-anim" style={{ animationDelay: ".2s" }}>{promo.subtitle}</p>}
-          <div className="hero-cta hero-anim" style={{ animationDelay: ".3s", justifyContent: "flex-start", marginTop: 6 }}>
-            <PromoLink promo={promo} className="btn btn-accent">{promo.cta_label || "立即預約"}</PromoLink>
-            {discountLabel(promo) && <span className="offer-discount on-dark">{discountLabel(promo)}</span>}
-            {promo.code && <span className="promo-code" style={{ background: "rgba(255,255,255,.9)" }}>代碼 <b>{promo.code}</b></span>}
+      {/* 照片區：電腦版鋪滿整個主視覺；手機版照片完整顯示（不裁切），文字移到照片下方 */}
+      <div className="hero-media">
+        {hero.map((h, k) => (
+          <div key={k} className={`hero-slide ${k === i ? "on" : ""} ${h.promo ? "is-promo" : ""}`} aria-hidden={k !== i}>
+            {/* 手機版用：同一張照片模糊放大當背景，補滿照片旁邊的空白（電腦版隱藏） */}
+            <img className="hero-bg" src={imgUrl(h.image, "portfolio")} alt="" aria-hidden="true" loading={k === 0 ? "eager" : "lazy"} />
+            <img className="hero-img" src={imgUrl(h.image, "portfolio")} alt={h.headline || h.promo?.title || ""} loading={k === 0 ? "eager" : "lazy"} />
           </div>
-        </div>
-      )}
-      <div className="hero-content">
-        <div className="hero-brand hero-anim">{studio.name_en} • {studio.tagline}</div>
-        {studio.hero_title ? (
-          <>
-            <h1 className="hero-title hero-anim" style={{ animationDelay: ".15s" }}>{studio.hero_title}</h1>
-            <p className="hero-line hero-anim" key={`t${i}`} style={{ animationDelay: ".3s" }}>{s.headline}</p>
-            <p className="hero-sub hero-anim" key={`s${i}`} style={{ animationDelay: ".4s" }}>{s.sub}</p>
-          </>
-        ) : (
-          <>
-            <h1 className="hero-title hero-anim" key={`t${i}`} style={{ animationDelay: ".15s" }}>{s.headline}</h1>
-            <p className="hero-sub hero-anim" key={`s${i}`} style={{ animationDelay: ".3s" }}>{s.sub}</p>
-          </>
+        ))}
+        {s.cat && !promo && (
+          <button className="hero-cat" style={{ background: "none", border: 0, color: "#fff" }}
+            onClick={() => nav(`/portfolio${catSlug(s.cat) ? `?cat=${catSlug(s.cat)}` : ""}`)}>— {s.cat}</button>
         )}
-        <div className="hero-cta hero-anim" style={{ animationDelay: ".45s" }}>
-          <Link to="/booking" className="btn btn-light">線上預約</Link>
-          <a href="#entry" className="btn btn-light" style={{ borderColor: "transparent" }}
-            onClick={(e) => { e.preventDefault(); document.getElementById("entry")?.scrollIntoView({ behavior: "smooth" }); }}>看拍攝方案 →</a>
+        <div className="hero-bottom">
+          {hero.map((_, k) => (
+            <button key={`${k}-${k === i ? i : "x"}`} className={`hero-dot ${k === i ? "on" : ""}`} style={{ "--dur": `${HERO_MS}ms` }}
+              onClick={() => setI(k)} aria-label={`第 ${k + 1} 張`} />
+          ))}
         </div>
       </div>
-      {s.cat && !promo && (
-        <button className="hero-cat" style={{ background: "none", border: 0, color: "#fff" }}
-          onClick={() => nav(`/portfolio${catSlug(s.cat) ? `?cat=${catSlug(s.cat)}` : ""}`)}>— {s.cat}</button>
-      )}
-      <div className="hero-bottom">
-        {hero.map((_, k) => (
-          <button key={`${k}-${k === i ? i : "x"}`} className={`hero-dot ${k === i ? "on" : ""}`} style={{ "--dur": `${HERO_MS}ms` }}
-            onClick={() => setI(k)} aria-label={`第 ${k + 1} 張`} />
-        ))}
+      {/* 文字區：電腦版疊在照片上；手機版放在照片下方 */}
+      <div className="hero-text">
+        {promo && (
+          <div className="hero-promo" key={`p${i}`}>
+            {promo.badge && <span className="promo-badge hero-anim">{promo.badge}</span>}
+            <h2 className="hero-anim" style={{ animationDelay: ".1s" }}>{promo.title}</h2>
+            {promo.subtitle && <p className="hero-anim" style={{ animationDelay: ".2s" }}>{promo.subtitle}</p>}
+            <div className="hero-cta hero-anim" style={{ animationDelay: ".3s", justifyContent: "flex-start", marginTop: 6 }}>
+              <PromoLink promo={promo} className="btn btn-accent">{promo.cta_label || "立即預約"}</PromoLink>
+              {discountLabel(promo) && <span className="offer-discount on-dark">{discountLabel(promo)}</span>}
+              {promo.code && <span className="promo-code" style={{ background: "rgba(255,255,255,.9)" }}>代碼 <b>{promo.code}</b></span>}
+            </div>
+          </div>
+        )}
+        <div className="hero-content">
+          <div className="hero-brand hero-anim">{studio.name_en} • {studio.tagline}</div>
+          {studio.hero_title ? (
+            <>
+              <h1 className="hero-title hero-anim" style={{ animationDelay: ".15s" }}>{studio.hero_title}</h1>
+              <p className="hero-line hero-anim" key={`t${i}`} style={{ animationDelay: ".3s" }}>{s.headline}</p>
+              <p className="hero-sub hero-anim" key={`s${i}`} style={{ animationDelay: ".4s" }}>{s.sub}</p>
+            </>
+          ) : (
+            <>
+              <h1 className="hero-title hero-anim" key={`t${i}`} style={{ animationDelay: ".15s" }}>{s.headline}</h1>
+              <p className="hero-sub hero-anim" key={`s${i}`} style={{ animationDelay: ".3s" }}>{s.sub}</p>
+            </>
+          )}
+          <div className="hero-cta hero-anim" style={{ animationDelay: ".45s" }}>
+            <Link to="/booking" className="btn btn-light">線上預約</Link>
+            <a href="#entry" className="btn btn-light" style={{ borderColor: "transparent" }}
+              onClick={(e) => { e.preventDefault(); document.getElementById("entry")?.scrollIntoView({ behavior: "smooth" }); }}>看拍攝方案 →</a>
+          </div>
+        </div>
       </div>
     </section>
   );
